@@ -1,0 +1,77 @@
+.animated-bg-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-dynamic-gif {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-image 0.8s ease;
+  filter: saturate(1.05) brightness(0.9);
+  will-change: background-image;
+  transform: translateZ(0);
+  contain: layout style paint;
+}
+
+.bg-modern-light {
+  background: linear-gradient(135deg, #0f172a 0%, #020617 45%, #1e293b 100%);
+  overflow: hidden;
+}
+
+.animated-bg-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+  pointer-events: none;
+  z-index: 1;
+  will-change: opacity;
+  transform: translateZ(0);
+}
+
+.animated-bg-grid {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 80px 80px;
+  background-position: 0 0, 0 0;
+  mix-blend-mode: normal;
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: 2;
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+/* Responsive grid size */
+@media (max-width: 768px) {
+  .animated-bg-grid {
+    background-size: 60px 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .animated-bg-grid {
+    background-size: 40px 40px;
+  }
+}
+
