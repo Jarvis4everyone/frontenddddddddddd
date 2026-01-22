@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentAPI, isSubscriptionActive, contactAPI } from '../services/api';
+import SubscriptionService from '../services/subscriptionService';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -11,17 +12,42 @@ const Dashboard = () => {
   const [contactLoading, setContactLoading] = useState(false);
   const [contactSuccess, setContactSuccess] = useState(false);
   const [contactError, setContactError] = useState('');
+  const [price, setPrice] = useState(null);
+  const [priceLoading, setPriceLoading] = useState(true);
 
   useEffect(() => {
     refreshSubscription();
+    // Fetch subscription price
+    async function fetchPrice() {
+      try {
+        const priceData = await SubscriptionService.getPrice();
+        setPrice(priceData.price);
+      } catch (error) {
+        console.error('Error fetching price:', error);
+        // Fallback to default price
+        setPrice(299);
+      } finally {
+        setPriceLoading(false);
+      }
+    }
+    fetchPrice();
   }, []);
 
-  const handlePayment = async (amount) => {
+  const handlePayment = async () => {
+    if (!price) {
+      alert('Price not available. Please refresh the page.');
+      return;
+    }
+
     setPaymentLoading(true);
     setError('');
     
     try {
-      const orderData = await paymentAPI.createOrder(amount, 'INR');
+      // Get fresh price data (in case it changed)
+      const priceData = await SubscriptionService.getPrice();
+      const amountToPay = priceData.price;
+      
+      const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
       const options = {
         key: orderData.key_id,
@@ -71,14 +97,16 @@ const Dashboard = () => {
     }
   };
 
-  const faqs = [
+  const getFaqs = () => [
     {
       question: 'What do I get with the subscription?',
       answer: 'As a subscriber, you will receive the latest version of the Jarvis AI source code that Shreshth Kaushik is developing in his ongoing YouTube tutorial series. You get access to all the source code updates as the project evolves, ensuring you always have the most current version of the Jarvis AI.'
     },
     {
       question: 'How much does the subscription cost?',
-      answer: 'The subscription is priced at ₹499 per month. This gives you complete access to the latest Jarvis AI source code and all updates throughout your subscription period.'
+      answer: price 
+        ? `The subscription is priced at ₹${price.toFixed(2)} per month. This gives you complete access to the latest Jarvis AI source code and all updates throughout your subscription period.`
+        : 'The subscription price is set by the backend. Please check the pricing section for current rates.'
     },
     {
       question: 'What payment methods are accepted?',
@@ -97,6 +125,8 @@ const Dashboard = () => {
       answer: 'You will receive the latest source code versions as Shreshth Kaushik creates them in his ongoing YouTube tutorial series. The source code will be available for download through your account, and you will have access to all updates released during your active subscription period.'
     }
   ];
+
+  const faqs = getFaqs();
 
   const toggleFaq = (index) => {
     setFaqOpen(faqOpen === index ? null : index);
@@ -175,16 +205,23 @@ const Dashboard = () => {
           <div className="section-box">
             <h2 className="section-title">Choose Your Plan</h2>
             <p className="subscription-intro">
-              Subscribe to the complete Jarvis AI source code for just ₹499/month. Unlimited customization 
-              and instant access to every new update while you stay subscribed. Start building your personal 
-              AI assistant today!
+              {price 
+                ? `Subscribe to the complete Jarvis AI source code for just ₹${price.toFixed(2)}/month. Unlimited customization and instant access to every new update while you stay subscribed. Start building your personal AI assistant today!`
+                : 'Subscribe to the complete Jarvis AI source code. Unlimited customization and instant access to every new update while you stay subscribed. Start building your personal AI assistant today!'
+              }
             </p>
             <div className="subscription-card">
               <div className="plan-header">
                 <h3>Jarvis AI Source Code</h3>
                 <div className="plan-price">
-                  <span className="price-amount">₹499</span>
-                  <span className="price-period">/month</span>
+                  {priceLoading ? (
+                    <span className="price-amount">Loading...</span>
+                  ) : (
+                    <>
+                      <span className="price-amount">₹{price?.toFixed(2) || '299.00'}</span>
+                      <span className="price-period">/month</span>
+                    </>
+                  )}
                 </div>
                 <p className="plan-description">Complete source code access + all future updates - Monthly subscription</p>
               </div>
@@ -280,11 +317,16 @@ const Dashboard = () => {
               </div>
               {(!subscription || !isSubscriptionActive(subscription)) ? (
                 <button 
-                  onClick={() => handlePayment(499.00)} 
+                  onClick={handlePayment} 
                   className="subscribe-button"
-                  disabled={paymentLoading}
+                  disabled={paymentLoading || !price || priceLoading}
                 >
-                  {paymentLoading ? 'Processing...' : 'Buy now for only ₹499/month'}
+                  {paymentLoading 
+                    ? 'Processing...' 
+                    : price 
+                      ? `Buy now for only ₹${price.toFixed(2)}/month`
+                      : 'Loading price...'
+                  }
                 </button>
               ) : (
                 <div className="subscription-active">
@@ -363,7 +405,7 @@ const Dashboard = () => {
           <div className="section-box">
             <h2 className="section-title">Frequently Asked Questions</h2>
             <div className="faq-list">
-            {faqs.map((faq, index) => (
+            {getFaqs().map((faq, index) => (
               <div key={index} className="faq-item">
                 <button 
                   className="faq-question" 

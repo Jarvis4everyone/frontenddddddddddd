@@ -139,6 +139,14 @@ export const subscriptionAPI = {
     return response.data;
   },
 
+  getPrice: async () => {
+    // Public endpoint, no auth required
+    const response = await axios.get(`${API_BASE_URL}/subscriptions/price`, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
   renew: async (months) => {
     const response = await api.post('/subscriptions/renew', { months });
     return response.data;
