@@ -405,7 +405,7 @@ const Dashboard = () => {
           <div className="section-box">
             <h2 className="section-title">Frequently Asked Questions</h2>
             <div className="faq-list">
-            {getFaqs().map((faq, index) => (
+            {faqs.map((faq, index) => (
               <div key={index} className="faq-item">
                 <button 
                   className="faq-question" 
