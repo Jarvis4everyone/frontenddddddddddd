@@ -3,10 +3,12 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Accept build argument for API URL
+# Accept build arguments for API URL (support both naming conventions)
+ARG VITE_API_URL=https://backend-gchd.onrender.com
 ARG VITE_API_BASE_URL=https://backend-gchd.onrender.com
 
-# Set as environment variable for Vite build
+# Set as environment variables for Vite build
+ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 # Copy package files
