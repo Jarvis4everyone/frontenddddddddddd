@@ -43,12 +43,11 @@ export const AuthProvider = ({ children }) => {
         // Try to get subscription separately
         try {
           const sub = await subscriptionAPI.getMySubscription();
+          // getMySubscription returns null for 404 (no subscription found)
           setSubscription(sub);
         } catch (subError) {
-          // 404 means no subscription found, which is valid
-          if (subError.response?.status === 404) {
-            setSubscription(null);
-          }
+          // Handle any other errors
+          setSubscription(null);
         }
       } catch (profileError) {
         // Token invalid or expired (401, 403, etc.)
@@ -109,14 +108,11 @@ export const AuthProvider = ({ children }) => {
   const refreshSubscription = async () => {
     try {
       const sub = await subscriptionAPI.getMySubscription();
+      // getMySubscription returns null for 404 (no subscription found)
       setSubscription(sub);
       return sub;
     } catch (error) {
-      // 404 means no subscription found, which is valid
-      if (error.response?.status === 404) {
-        setSubscription(null);
-        return null;
-      }
+      // Handle any other errors
       setSubscription(null);
       throw error;
     }

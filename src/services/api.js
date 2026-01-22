@@ -135,8 +135,17 @@ export const profileAPI = {
 // Subscription API
 export const subscriptionAPI = {
   getMySubscription: async () => {
-    const response = await api.get('/subscriptions/me');
-    return response.data;
+    try {
+      const response = await api.get('/subscriptions/me');
+      return response.data;
+    } catch (error) {
+      // 404 means no subscription found, which is valid - don't log as error
+      if (error.response?.status === 404) {
+        // Return null instead of throwing for cleaner error handling
+        return null;
+      }
+      throw error;
+    }
   },
 
   getPrice: async () => {
