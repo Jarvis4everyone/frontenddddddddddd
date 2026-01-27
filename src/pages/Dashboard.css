@@ -2038,26 +2038,48 @@
   .footer-section ul {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    align-items: center;
+    gap: 0;
+    align-items: stretch;
+    width: 100%;
   }
 
   .footer-section ul li {
+    margin-bottom: 10px;
+    width: 100%;
+  }
+
+  .footer-section ul li:last-child {
     margin-bottom: 0;
   }
 
   .footer-section ul li a {
     font-size: 13px;
-    padding: 8px 16px;
+    padding: 10px 12px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    display: inline-block;
+    display: flex;
+    align-items: center;
     transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 8px;
   }
 
   .footer-section ul li a:hover {
     background: rgba(255, 255, 255, 0.1);
-    padding-left: 16px;
+    padding-left: 12px;
+  }
+  
+  .footer-section ul li a .button-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+  }
+  
+  .footer-section ul li a span {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
     transform: translateY(-2px);
   }
 
