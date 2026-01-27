@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentAPI, isSubscriptionActive, contactAPI } from '../services/api';
 import SubscriptionService from '../services/subscriptionService';
+import { getCachedRazorpayImage } from '../utils/imageUtils';
 import './Dashboard.css';
 
 // Image Gallery Component
@@ -104,15 +105,8 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Get absolute URL for Razorpay image (must be absolute URL)
-      const getImageUrl = () => {
-        if (typeof window !== 'undefined') {
-          const protocol = window.location.protocol;
-          const host = window.location.host;
-          return `${protocol}//${host}/image.jpg`;
-        }
-        return '/image.jpg';
-      };
+      // Get image as base64 data URL to avoid CORS issues
+      const imageBase64 = await getCachedRazorpayImage();
       
       const options = {
         key: orderData.key_id,
@@ -121,7 +115,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Shreshth Kaushik',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        image: getImageUrl(),
+        ...(imageBase64 && { image: imageBase64 }),
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({
