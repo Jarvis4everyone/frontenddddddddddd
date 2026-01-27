@@ -70,6 +70,7 @@ const Dashboard = () => {
   const [contactError, setContactError] = useState('');
   const [price, setPrice] = useState(null);
   const [priceLoading, setPriceLoading] = useState(true);
+  const [razorpayImage, setRazorpayImage] = useState(null);
 
   useEffect(() => {
     refreshSubscription();
@@ -79,7 +80,6 @@ const Dashboard = () => {
         const priceData = await SubscriptionService.getPrice();
         setPrice(priceData.price);
       } catch (error) {
-        console.error('Error fetching price:', error);
         // Fallback to default price
         setPrice(299);
       } finally {
@@ -87,6 +87,14 @@ const Dashboard = () => {
       }
     }
     fetchPrice();
+    
+    // Pre-load Razorpay image
+    getRazorpayImage().then(setRazorpayImage).catch(() => {
+      // If base64 fails, try production URL
+      if (window.location.protocol === 'https:' || window.location.hostname !== 'localhost') {
+        setRazorpayImage(`${window.location.protocol}//${window.location.host}/image.jpg`);
+      }
+    });
   }, []);
 
   const handlePayment = async () => {
