@@ -117,6 +117,13 @@ const Dashboard = () => {
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const logoUrl = isLocalhost ? undefined : `${window.location.origin}/rzplogo.png`;
       
+      // Set up timeout handler first
+      let openTimeout;
+      const resetLoading = () => {
+        if (openTimeout) clearTimeout(openTimeout);
+        setPaymentLoading(false);
+      };
+
       const options = {
         key: orderData.key_id,
         amount: orderData.amount,
@@ -126,6 +133,7 @@ const Dashboard = () => {
         description: 'Monthly Subscription - Jarvis4Everyone',
         ...(logoUrl && { image: logoUrl }), // Only include image if logoUrl exists
         handler: async function (response) {
+          resetLoading();
           try {
             await paymentAPI.verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
@@ -153,7 +161,7 @@ const Dashboard = () => {
         },
         modal: {
           ondismiss: function() {
-            setPaymentLoading(false);
+            resetLoading();
           }
         }
       };
@@ -163,30 +171,46 @@ const Dashboard = () => {
         throw new Error('Razorpay checkout script not loaded. Please refresh the page.');
       }
 
+      // Set a timeout to reset loading state if popup doesn't open within 5 seconds
+      openTimeout = setTimeout(() => {
+        console.warn('Razorpay popup did not open within 5 seconds. Resetting loading state.');
+        resetLoading();
+        setError('Payment gateway is taking too long to open. Please check your internet connection and try again.');
+      }, 5000);
+
       const rzp = new window.Razorpay(options);
       
       // Handle payment failure
       rzp.on('payment.failed', function (response) {
+        resetLoading();
         const errorMsg = response.error?.description || 'Payment failed. Please try again.';
         setError(errorMsg);
-        setPaymentLoading(false);
         // Navigate to failure page
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
       
       // Handle modal close
       rzp.on('modal.close', function() {
-        setPaymentLoading(false);
+        resetLoading();
       });
       
       // Open Razorpay checkout
       try {
         rzp.open();
-        // Don't set loading to false here - wait for payment completion or failure
+        // If popup opens, we'll clear timeout when modal events fire
+        // But also set a shorter timeout to detect if it actually opened
+        setTimeout(() => {
+          // Check if popup is visible (basic check)
+          const razorpayModal = document.querySelector('.razorpay-container, [class*="razorpay"]');
+          if (razorpayModal) {
+            clearTimeout(openTimeout);
+            openTimeout = null;
+          }
+        }, 1000);
       } catch (openError) {
+        resetLoading();
         console.error('Error opening Razorpay:', openError);
-        setError('Failed to open payment gateway. Please try again.');
-        setPaymentLoading(false);
+        setError('Failed to open payment gateway. Please try again or refresh the page.');
       }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create payment order');
