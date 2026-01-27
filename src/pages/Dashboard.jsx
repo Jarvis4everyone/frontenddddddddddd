@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentAPI, isSubscriptionActive, contactAPI } from '../services/api';
 import SubscriptionService from '../services/subscriptionService';
@@ -59,6 +60,7 @@ const ImageGallery = () => {
 
 const Dashboard = () => {
   const { user, subscription, refreshSubscription } = useAuth();
+  const navigate = useNavigate();
   const [error, setError] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [faqOpen, setFaqOpen] = useState(null);
@@ -119,10 +121,13 @@ const Dashboard = () => {
             });
             
             await refreshSubscription();
-            alert('Payment successful! Your subscription has been activated.');
+            // Navigate to success page
+            navigate(`/payment/status?status=success&order_id=${response.razorpay_order_id}`);
           } catch (verifyError) {
-            setError(verifyError.response?.data?.detail || 'Payment verification failed');
-            alert('Payment verification failed. Please contact support.');
+            const errorMsg = verifyError.response?.data?.detail || 'Payment verification failed';
+            setError(errorMsg);
+            // Navigate to failure page
+            navigate(`/payment/status?status=failed&order_id=${response.razorpay_order_id}&error=${encodeURIComponent(errorMsg)}`);
           }
         },
         prefill: {
@@ -142,9 +147,11 @@ const Dashboard = () => {
 
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response) {
-        setError(response.error.description || 'Payment failed');
+        const errorMsg = response.error?.description || 'Payment failed. Please try again.';
+        setError(errorMsg);
         setPaymentLoading(false);
-        alert('Payment failed. Please try again.');
+        // Navigate to failure page
+        navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
       
       rzp.open();

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Downloads from './pages/Downloads';
 import AdminPanel from './pages/AdminPanel';
+import PaymentStatus from './pages/PaymentStatus';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import './App.css';
@@ -49,6 +50,7 @@ function App() {
               </AdminRoute>
             }
           />
+          <Route path="/payment/status" element={<PaymentStatus />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
