@@ -104,6 +104,9 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
+      // Get absolute URL for image
+      const imageUrl = `${window.location.origin}/image.jpg`;
+      
       const options = {
         key: orderData.key_id,
         amount: orderData.amount,
@@ -111,7 +114,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Shreshth Kaushik',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        image: '/image.jpg',
+        image: imageUrl,
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({
