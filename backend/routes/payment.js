@@ -7,12 +7,14 @@ const config = require('../config');
 const logger = require('../utils/logger');
 
 /**
- * Create Razorpay order for payment
+ * POST /api/payments/create-order
+ * Create Razorpay order
  */
-router.post('/create-order', getCurrentUser, async (req, res, next) => {
+router.post('/create-order', getCurrentUser, async (req, res) => {
   try {
     const { amount, currency = 'INR' } = req.body;
-    
+
+    // Validate input
     if (!amount) {
       return res.status(400).json({ detail: 'Amount is required' });
     }
@@ -20,13 +22,13 @@ router.post('/create-order', getCurrentUser, async (req, res, next) => {
     if (typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ detail: 'Amount must be a positive number' });
     }
-    
-    logger.info(`Creating payment order for user ${req.user.email}: ${amount} ${currency}`);
-    
+
+    logger.info(`Creating payment order for ${req.user.email}: ${amount} ${currency}`);
+
     // Create Razorpay order
     const order = await PaymentService.createOrder(amount, currency);
-    
-    // Create payment record
+
+    // Create payment record in database
     const payment = await PaymentService.createPaymentRecord(
       req.user.id,
       req.user.email,
@@ -34,9 +36,10 @@ router.post('/create-order', getCurrentUser, async (req, res, next) => {
       currency,
       order.id
     );
-    
-    logger.info(`✓ Payment order created successfully: ${order.id}`);
-    
+
+    logger.info(`✓ Payment order created: ${order.id}`);
+
+    // Return order details for frontend
     res.json({
       order_id: order.id,
       amount: order.amount,
@@ -45,54 +48,54 @@ router.post('/create-order', getCurrentUser, async (req, res, next) => {
       payment_id: payment.id
     });
   } catch (error) {
-    logger.error(`Error creating payment order: ${error.message}`);
-    logger.error(`Error stack: ${error.stack}`);
+    logger.error(`✗ Payment order creation failed: ${error.message}`);
     
-    // Return more detailed error message
-    const errorMessage = error.message || 'Failed to create payment order';
-    res.status(500).json({ 
-      detail: errorMessage,
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    res.status(500).json({
+      detail: error.message || 'Failed to create payment order'
     });
   }
 });
 
 /**
- * Verify Razorpay payment and activate subscription
+ * POST /api/payments/verify
+ * Verify payment and activate subscription
  */
-router.post('/verify', getCurrentUser, async (req, res, next) => {
+router.post('/verify', getCurrentUser, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    
+
+    // Validate input
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ detail: 'All payment fields are required' });
+      return res.status(400).json({ 
+        detail: 'razorpay_order_id, razorpay_payment_id, and razorpay_signature are required' 
+      });
     }
-    
+
+    logger.info(`Verifying payment: ${razorpay_order_id}`);
+
     // Get payment record
     const payment = await PaymentService.getPaymentByOrderId(razorpay_order_id);
+    
     if (!payment) {
       return res.status(404).json({ detail: 'Payment record not found' });
     }
-    
-    // Verify payment belongs to current user (compare as strings)
-    const paymentUserId = payment.user_id?.toString();
-    const currentUserId = req.user.id?.toString();
-    if (paymentUserId !== currentUserId) {
-      logger.warn(`Payment user mismatch: payment.user_id=${paymentUserId}, req.user.id=${currentUserId}`);
+
+    // Verify payment belongs to user
+    if (payment.user_id !== req.user.id) {
       return res.status(403).json({ detail: 'Payment does not belong to current user' });
     }
-    
+
     // Verify payment signature
-    const isValid = await PaymentService.verifyPayment(
+    const isValid = PaymentService.verifyPaymentSignature(
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature
     );
-    
+
     if (!isValid) {
       return res.status(400).json({ detail: 'Invalid payment signature' });
     }
-    
+
     // Update payment status
     const updatedPayment = await PaymentService.updatePaymentStatus(
       razorpay_order_id,
@@ -100,67 +103,23 @@ router.post('/verify', getCurrentUser, async (req, res, next) => {
       razorpay_signature,
       'completed'
     );
-    
-    // Activate subscription (1 month for now)
-    await SubscriptionService.renewSubscription(req.user.id, 1);
-    
-    res.json(updatedPayment);
-  } catch (error) {
-    next(error);
-  }
-});
 
-/**
- * Handle Razorpay webhook (for payment status updates)
- */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res, next) => {
-  try {
-    // Get webhook signature from headers
-    const signature = req.headers['x-razorpay-signature'];
-    if (!signature) {
-      return res.status(400).json({ detail: 'Missing webhook signature' });
-    }
-    
-    // Get request body as string
-    const bodyStr = req.body.toString('utf-8');
-    
-    // Verify webhook signature
-    const isValid = await PaymentService.verifyWebhookSignature(bodyStr, signature);
-    if (!isValid) {
-      return res.status(400).json({ detail: 'Invalid webhook signature' });
-    }
-    
-    // Parse webhook payload
-    const payload = JSON.parse(bodyStr);
-    const event = payload.event;
-    
-    if (event === 'payment.captured') {
-      // Payment successful
-      const paymentData = payload.payload?.payment?.entity || {};
-      const orderId = paymentData.order_id;
-      
-      if (orderId) {
-        const payment = await PaymentService.getPaymentByOrderId(orderId);
-        if (payment && payment.status === 'pending') {
-          await PaymentService.updatePaymentStatus(
-            orderId,
-            paymentData.id || '',
-            signature,
-            'completed'
-          );
-          
-          // Activate subscription if user exists
-          if (payment.user_id) {
-            await SubscriptionService.renewSubscription(payment.user_id, 1);
-          }
-        }
-      }
-    }
-    
-    res.json({ status: 'success' });
+    // Activate subscription (1 month)
+    await SubscriptionService.renewSubscription(req.user.id, 1);
+
+    logger.info(`✓ Payment verified and subscription activated: ${razorpay_order_id}`);
+
+    res.json({
+      success: true,
+      payment: updatedPayment,
+      message: 'Payment verified successfully'
+    });
   } catch (error) {
-    logger.error(`Webhook processing error: ${error.message}`);
-    next(error);
+    logger.error(`✗ Payment verification failed: ${error.message}`);
+    
+    res.status(500).json({
+      detail: error.message || 'Failed to verify payment'
+    });
   }
 });
 
