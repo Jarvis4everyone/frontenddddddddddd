@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentAPI, isSubscriptionActive, contactAPI } from '../services/api';
 import SubscriptionService from '../services/subscriptionService';
-import { getRazorpayImage } from '../utils/razorpayImage';
 import './Dashboard.css';
 
 // Image Gallery Component
@@ -70,7 +69,6 @@ const Dashboard = () => {
   const [contactError, setContactError] = useState('');
   const [price, setPrice] = useState(null);
   const [priceLoading, setPriceLoading] = useState(true);
-  const [razorpayImage, setRazorpayImage] = useState(null);
 
   useEffect(() => {
     refreshSubscription();
@@ -80,6 +78,7 @@ const Dashboard = () => {
         const priceData = await SubscriptionService.getPrice();
         setPrice(priceData.price);
       } catch (error) {
+        console.error('Error fetching price:', error);
         // Fallback to default price
         setPrice(299);
       } finally {
@@ -87,14 +86,6 @@ const Dashboard = () => {
       }
     }
     fetchPrice();
-    
-    // Pre-load Razorpay image
-    getRazorpayImage().then(setRazorpayImage).catch(() => {
-      // If base64 fails, try production URL
-      if (window.location.protocol === 'https:' || window.location.hostname !== 'localhost') {
-        setRazorpayImage(`${window.location.protocol}//${window.location.host}/image.jpg`);
-      }
-    });
   }, []);
 
   const handlePayment = async () => {
@@ -113,11 +104,15 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Use pre-loaded image or get it now
-      let imageUrl = razorpayImage;
-      if (!imageUrl) {
-        imageUrl = await getRazorpayImage();
-      }
+      // Get absolute URL for Razorpay image (must be absolute URL)
+      const getImageUrl = () => {
+        if (typeof window !== 'undefined') {
+          const protocol = window.location.protocol;
+          const host = window.location.host;
+          return `${protocol}//${host}/image.jpg`;
+        }
+        return '/image.jpg';
+      };
       
       const options = {
         key: orderData.key_id,
@@ -126,7 +121,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Shreshth Kaushik',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        ...(imageUrl && { image: imageUrl }),
+        image: getImageUrl(),
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({
