@@ -12,30 +12,7 @@ const AnimatedBackground = memo(function AnimatedBackground() {
     let animationFrameId;
     let particles = [];
 
-    // Set canvas size with debouncing for performance
-    let resizeTimeout;
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      // Recreate particles on resize
-      particles = [];
-      const isMobile = window.innerWidth <= 768;
-      const baseArea = isMobile ? 15000 : 25000;
-      const maxParticles = isMobile ? 80 : 60;
-      const particleCount = Math.min(Math.floor((canvas.width * canvas.height) / baseArea), maxParticles);
-      for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle());
-      }
-    };
-    resizeCanvas();
-    
-    const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(resizeCanvas, 250); // Debounce resize
-    };
-    window.addEventListener('resize', handleResize, { passive: true });
-
-    // Particle class
+    // Particle class - must be defined before resizeCanvas
     class Particle {
       constructor() {
         this.x = Math.random() * canvas.width;
@@ -63,6 +40,29 @@ const AnimatedBackground = memo(function AnimatedBackground() {
         ctx.fill();
       }
     }
+
+    // Set canvas size with debouncing for performance
+    let resizeTimeout;
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      // Recreate particles on resize
+      particles = [];
+      const isMobile = window.innerWidth <= 768;
+      const baseArea = isMobile ? 15000 : 25000;
+      const maxParticles = isMobile ? 80 : 60;
+      const particleCount = Math.min(Math.floor((canvas.width * canvas.height) / baseArea), maxParticles);
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+    };
+    resizeCanvas();
+    
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(resizeCanvas, 250); // Debounce resize
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
 
     // Create particles - optimized for performance
     // Reduce particle count on larger screens to maintain 60fps
