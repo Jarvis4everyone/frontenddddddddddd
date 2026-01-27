@@ -104,28 +104,27 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Razorpay requires HTTPS-accessible image URL
-      // In production, use full HTTPS URL; in development, use base64 data URI
+      // Load base64 image data from file
       let imageUrl = null;
-      
-      if (window.location.protocol === 'https:' || window.location.hostname !== 'localhost') {
-        // Production: Use full HTTPS URL
-        imageUrl = `${window.location.protocol}//${window.location.host}/image.jpg`;
-      } else {
-        // Development: Convert image to base64 data URI to avoid mixed content/CORS issues
-        try {
-          const response = await fetch('/image.jpg');
-          const blob = await response.blob();
-          const reader = new FileReader();
-          imageUrl = await new Promise((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-        } catch (error) {
-          // If image loading fails, use a placeholder or skip
-          console.warn('Could not load image for Razorpay, using default');
-          imageUrl = null; // Razorpay will use default icon
+      try {
+        const response = await fetch('/base64.image');
+        if (response.ok) {
+          const base64Data = await response.text();
+          // Ensure it's a valid data URI format
+          if (base64Data.trim().startsWith('data:image')) {
+            imageUrl = base64Data.trim();
+          } else if (base64Data.trim().startsWith('/9j/') || base64Data.trim().match(/^[A-Za-z0-9+/=]+$/)) {
+            // If it's just base64 string without data URI prefix, add it
+            imageUrl = `data:image/jpeg;base64,${base64Data.trim()}`;
+          } else {
+            // Try as direct base64
+            imageUrl = `data:image/jpeg;base64,${base64Data.trim()}`;
+          }
+        }
+      } catch (error) {
+        // Fallback: try production URL if base64 fails
+        if (window.location.protocol === 'https:' || window.location.hostname !== 'localhost') {
+          imageUrl = `${window.location.protocol}//${window.location.host}/image.jpg`;
         }
       }
       
