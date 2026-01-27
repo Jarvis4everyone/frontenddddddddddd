@@ -109,6 +109,8 @@ class PaymentService {
     try {
       const db = getDatabase();
       
+      // Don't include razorpay_payment_id and razorpay_signature fields when null
+      // This works better with sparse indexes - fields that don't exist are not indexed
       const payment = {
         user_id: getObjectId(userId),
         email: email,
@@ -116,8 +118,7 @@ class PaymentService {
         amount: amount,
         currency: currency,
         razorpay_order_id: razorpayOrderId,
-        razorpay_payment_id: null,
-        razorpay_signature: null,
+        // Don't set razorpay_payment_id or razorpay_signature - they'll be added when payment is verified
         status: 'pending',
         created_at: new Date(),
         updated_at: new Date()

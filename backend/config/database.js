@@ -53,18 +53,32 @@ async function createIndexes() {
     await database.collection('payments').createIndex({ razorpay_order_id: 1 }, { unique: true });
     
     // Fix razorpay_payment_id index: make it sparse to allow multiple null values
+    // Try to drop any existing index on razorpay_payment_id
     try {
-      await database.collection('payments').dropIndex('razorpay_payment_id_1');
-      logger.debug('⚠ Dropped old razorpay_payment_id index');
+      const indexes = await database.collection('payments').indexes();
+      for (const index of indexes) {
+        if (index.key && index.key.razorpay_payment_id) {
+          await database.collection('payments').dropIndex(index.name);
+          logger.debug(`⚠ Dropped old razorpay_payment_id index: ${index.name}`);
+        }
+      }
     } catch (e) {
       // Index doesn't exist or has different name, that's okay
+      logger.debug(`Index drop attempt: ${e.message}`);
     }
     
     // Create sparse unique index: only indexes non-null values, allows multiple nulls
-    await database.collection('payments').createIndex(
-      { razorpay_payment_id: 1 }, 
-      { unique: true, sparse: true }
-    );
+    // Sparse index only indexes documents that have the field, so null values are ignored
+    try {
+      await database.collection('payments').createIndex(
+        { razorpay_payment_id: 1 }, 
+        { unique: true, sparse: true, name: 'razorpay_payment_id_unique_sparse' }
+      );
+      logger.debug('✓ Created sparse unique index on razorpay_payment_id');
+    } catch (e) {
+      // Index might already exist, that's okay
+      logger.debug(`Index creation: ${e.message}`);
+    }
     
     await database.collection('payments').createIndex({ email: 1 });
     await database.collection('payments').createIndex({ created_at: 1 });
