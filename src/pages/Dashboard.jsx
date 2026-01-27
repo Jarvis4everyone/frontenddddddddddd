@@ -104,8 +104,10 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Get absolute URL for logo to ensure it always loads
-      const logoUrl = `${window.location.origin}/rzplogo.png`;
+      // Get absolute URL for logo - only use if not localhost (for production)
+      // In development, Razorpay can't access localhost due to CORS
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const logoUrl = isLocalhost ? undefined : `${window.location.origin}/rzplogo.png`;
       
       const options = {
         key: orderData.key_id,
@@ -114,7 +116,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'J4E',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        image: logoUrl,
+        ...(logoUrl && { image: logoUrl }), // Only include image if logoUrl exists
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({
