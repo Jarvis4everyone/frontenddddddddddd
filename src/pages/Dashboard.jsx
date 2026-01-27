@@ -109,15 +109,31 @@ const Dashboard = () => {
     };
 
     try {
-      // Wait for Razorpay script to load
+      // Wait for Razorpay script to load with better detection
       let retries = 0;
-      while (!window.Razorpay && retries < 20) {
+      const maxRetries = 30; // 3 seconds total
+      
+      while (!window.Razorpay && retries < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 100));
         retries++;
       }
 
-      if (!window.Razorpay) {
-        throw new Error('Razorpay script not loaded. Please refresh the page.');
+      // Final check
+      if (!window.Razorpay || typeof window.Razorpay !== 'function') {
+        // Try to load script dynamically as fallback
+        if (!document.querySelector('script[src*="razorpay"]')) {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          document.head.appendChild(script);
+          
+          // Wait a bit more
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        if (!window.Razorpay || typeof window.Razorpay !== 'function') {
+          throw new Error('Razorpay script failed to load. Please check your internet connection and refresh the page.');
+        }
       }
 
       // Get price
@@ -182,10 +198,26 @@ const Dashboard = () => {
         },
       };
 
-      // Create Razorpay instance
-      const rzp = new window.Razorpay(options);
+      // Validate Razorpay constructor
+      if (typeof window.Razorpay !== 'function') {
+        throw new Error('Razorpay constructor is not available. Please refresh the page.');
+      }
 
-      // Event handlers
+      // Create Razorpay instance
+      let rzp;
+      try {
+        rzp = new window.Razorpay(options);
+        
+        // Validate instance
+        if (!rzp || typeof rzp.open !== 'function') {
+          throw new Error('Failed to create Razorpay instance');
+        }
+      } catch (initError) {
+        resetLoading();
+        throw new Error(`Razorpay initialization failed: ${initError.message}`);
+      }
+
+      // Event handlers - MUST be set before opening
       rzp.on('payment.failed', function (response) {
         resetLoading();
         popupOpened = true;
@@ -194,7 +226,7 @@ const Dashboard = () => {
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
-      // Safety timeout - ALWAYS reset loading after 5 seconds if popup didn't open
+      // Safety timeout - ALWAYS reset loading after 5 seconds
       timeoutId = setTimeout(() => {
         resetLoading();
         if (!popupOpened) {
@@ -205,8 +237,9 @@ const Dashboard = () => {
       // Open payment popup
       try {
         rzp.open();
+        popupOpened = true; // Mark as opened
         
-        // Check if popup opened after 1 second
+        // Verify popup actually appeared and clear timeout
         setTimeout(() => {
           const selectors = [
             'iframe[src*="razorpay"]',
@@ -220,7 +253,6 @@ const Dashboard = () => {
           for (const selector of selectors) {
             if (document.querySelector(selector)) {
               found = true;
-              popupOpened = true;
               // Clear timeout if popup opened
               if (timeoutId) {
                 clearTimeout(timeoutId);
@@ -229,11 +261,21 @@ const Dashboard = () => {
               break;
             }
           }
+          
+          // If still not found after 2 seconds, keep timeout but mark as opened
+          if (!found && timeoutId) {
+            // Popup might be loading, give it more time
+            setTimeout(() => {
+              if (timeoutId) {
+                // Still not found, but don't reset - let user interact
+                // The modal.ondismiss will handle reset
+              }
+            }, 2000);
+          }
         }, 1000);
       } catch (openError) {
         resetLoading();
-        setError('Failed to open payment gateway. Please refresh and try again.');
-        return;
+        throw new Error(`Failed to open payment gateway: ${openError.message}`);
       }
 
     } catch (err) {

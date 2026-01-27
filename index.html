@@ -11,11 +11,34 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script 
+      src="https://checkout.razorpay.com/v1/checkout.js"
+      onload="console.log('Razorpay script loaded')"
+      onerror="console.error('Failed to load Razorpay script')"
+    ></script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Ensure Razorpay is available
+      window.addEventListener('load', function() {
+        if (window.Razorpay) {
+          console.log('✓ Razorpay initialized');
+        } else {
+          console.warn('⚠ Razorpay not found, attempting to load...');
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = function() {
+            console.log('✓ Razorpay loaded dynamically');
+          };
+          script.onerror = function() {
+            console.error('✗ Failed to load Razorpay script');
+          };
+          document.head.appendChild(script);
+        }
+      });
+    </script>
   </body>
 </html>
 
