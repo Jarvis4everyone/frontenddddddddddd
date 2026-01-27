@@ -104,8 +104,30 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Get absolute URL for image - Razorpay requires publicly accessible URL
-      const imageUrl = `${window.location.protocol}//${window.location.host}/image.jpg`;
+      // Razorpay requires HTTPS-accessible image URL
+      // In production, use full HTTPS URL; in development, use base64 data URI
+      let imageUrl = null;
+      
+      if (window.location.protocol === 'https:' || window.location.hostname !== 'localhost') {
+        // Production: Use full HTTPS URL
+        imageUrl = `${window.location.protocol}//${window.location.host}/image.jpg`;
+      } else {
+        // Development: Convert image to base64 data URI to avoid mixed content/CORS issues
+        try {
+          const response = await fetch('/image.jpg');
+          const blob = await response.blob();
+          const reader = new FileReader();
+          imageUrl = await new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          // If image loading fails, use a placeholder or skip
+          console.warn('Could not load image for Razorpay, using default');
+          imageUrl = null; // Razorpay will use default icon
+        }
+      }
       
       const options = {
         key: orderData.key_id,
@@ -114,7 +136,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Shreshth Kaushik',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        image: imageUrl,
+        ...(imageUrl && { image: imageUrl }), // Only set image if we have a valid URL
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({
