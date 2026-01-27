@@ -27,12 +27,18 @@ class PaymentService {
    */
   static async createOrder(amount, currency = 'INR') {
     if (!razorpayClient) {
+      logger.error('Razorpay client is not initialized');
       throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
     }
 
     if (!config.razorpay.keyId || !config.razorpay.keySecret) {
+      logger.error('Razorpay credentials are missing from config');
       throw new Error('Razorpay credentials are missing. Please configure RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
     }
+    
+    // Log credential status (without exposing secrets)
+    logger.info(`Razorpay Key ID: ${config.razorpay.keyId.substring(0, 8)}... (configured)`);
+    logger.info(`Razorpay Key Secret: ${config.razorpay.keySecret ? '***configured***' : 'MISSING'}`);
 
     try {
       const orderData = {
@@ -48,7 +54,19 @@ class PaymentService {
     } catch (error) {
       logger.error(`✗ Failed to create Razorpay order: ${error.message}`);
       logger.error(`Error details: ${JSON.stringify(error)}`);
-      throw new Error(`Failed to create payment order: ${error.message || 'Unknown error'}`);
+      
+      // Provide more specific error messages
+      if (error.statusCode === 401) {
+        const errorMsg = 'Razorpay authentication failed. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.';
+        logger.error(errorMsg);
+        throw new Error(errorMsg);
+      } else if (error.error && error.error.description) {
+        throw new Error(`Razorpay error: ${error.error.description}`);
+      } else if (error.message) {
+        throw new Error(`Failed to create payment order: ${error.message}`);
+      } else {
+        throw new Error('Failed to create payment order: Unknown error. Please check Razorpay configuration.');
+      }
     }
   }
 
