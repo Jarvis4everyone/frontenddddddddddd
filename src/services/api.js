@@ -127,13 +127,11 @@ export const subscriptionAPI = {
   getMySubscription: async () => {
     try {
       const response = await api.get('/subscriptions/me');
+      // Backend now returns null (200 status) instead of 404 for no subscription
       return response.data;
     } catch (error) {
-      // 404 means no subscription found, which is valid - don't log as error
-      if (error.response?.status === 404) {
-        // Return null instead of throwing for cleaner error handling
-        return null;
-      }
+      // Handle any unexpected errors
+      console.error('Subscription fetch error:', error);
       throw error;
     }
   },

@@ -17,14 +17,13 @@ router.get('/price', async (req, res) => {
 
 /**
  * Get current user's subscription
+ * Returns null if no subscription found (200 status) instead of 404
  */
 router.get('/me', getCurrentUser, async (req, res, next) => {
   try {
     const subscription = await SubscriptionService.getUserSubscription(req.user.id);
-    if (!subscription) {
-      return res.status(404).json({ detail: 'No subscription found' });
-    }
-    res.json(subscription);
+    // Return 200 with null instead of 404 - this is expected for users without subscription
+    res.json(subscription || null);
   } catch (error) {
     next(error);
   }
