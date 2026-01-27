@@ -107,8 +107,9 @@ const Dashboard = () => {
         amount: orderData.amount,
         currency: orderData.currency,
         order_id: orderData.order_id,
-        name: 'Jarvis4Everyone',
-        description: 'Monthly Subscription',
+        name: 'Shreshth Kaushik',
+        description: 'Monthly Subscription - Jarvis4Everyone',
+        image: '/image.jpg',
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({
@@ -124,9 +125,13 @@ const Dashboard = () => {
             alert('Payment verification failed. Please contact support.');
           }
         },
-        prefill: {},
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.contact_number || '',
+        },
         theme: {
-          color: '#667eea',
+          color: '#000000',
         },
         modal: {
           ondismiss: function() {

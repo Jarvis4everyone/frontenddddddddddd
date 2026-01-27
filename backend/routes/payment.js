@@ -74,8 +74,11 @@ router.post('/verify', getCurrentUser, async (req, res, next) => {
       return res.status(404).json({ detail: 'Payment record not found' });
     }
     
-    // Verify payment belongs to current user
-    if (payment.user_id !== req.user.id) {
+    // Verify payment belongs to current user (compare as strings)
+    const paymentUserId = payment.user_id?.toString();
+    const currentUserId = req.user.id?.toString();
+    if (paymentUserId !== currentUserId) {
+      logger.warn(`Payment user mismatch: payment.user_id=${paymentUserId}, req.user.id=${currentUserId}`);
       return res.status(403).json({ detail: 'Payment does not belong to current user' });
     }
     

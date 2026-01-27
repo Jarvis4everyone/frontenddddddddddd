@@ -1,4 +1,5 @@
 const Razorpay = require('razorpay');
+const crypto = require('crypto');
 const { getDatabase, getObjectId } = require('../config/database');
 const config = require('../config');
 const logger = require('../utils/logger');
@@ -74,22 +75,36 @@ class PaymentService {
   }
 
   /**
-   * Verify Razorpay payment signature
+   * Verify Razorpay payment signature using crypto
    */
   static async verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature) {
-    if (!razorpayClient) {
-      logger.error('Razorpay client not initialized');
+    if (!razorpayClient || !config.razorpay.keySecret) {
+      logger.error('Razorpay client or secret not initialized');
       return false;
     }
 
     try {
-      const params = {
-        razorpay_order_id: razorpayOrderId,
-        razorpay_payment_id: razorpayPaymentId,
-        razorpay_signature: razorpaySignature
-      };
+      // Create signature string: order_id|payment_id
+      const payload = `${razorpayOrderId}|${razorpayPaymentId}`;
       
-      razorpayClient.utility.verify_payment_signature(params);
+      // Generate expected signature using HMAC SHA256
+      const expectedSignature = crypto
+        .createHmac('sha256', config.razorpay.keySecret)
+        .update(payload)
+        .digest('hex');
+      
+      // Compare signatures (use timing-safe comparison)
+      const isValid = crypto.timingSafeEqual(
+        Buffer.from(razorpaySignature),
+        Buffer.from(expectedSignature)
+      );
+      
+      if (!isValid) {
+        logger.error(`Payment signature mismatch for order ${razorpayOrderId}`);
+        return false;
+      }
+      
+      logger.info(`✓ Payment signature verified for order ${razorpayOrderId}`);
       return true;
     } catch (error) {
       logger.error(`Payment verification failed for order ${razorpayOrderId}: ${error?.message || error}`);
@@ -152,20 +167,32 @@ class PaymentService {
   }
 
   /**
-   * Verify Razorpay webhook signature
+   * Verify Razorpay webhook signature using crypto
    */
   static async verifyWebhookSignature(payload, signature) {
-    if (!razorpayClient) {
-      logger.error('Razorpay client not initialized');
+    if (!config.razorpay.webhookSecret) {
+      logger.error('Razorpay webhook secret not configured');
       return false;
     }
 
     try {
-      razorpayClient.utility.verify_webhook_signature(
-        payload,
-        signature,
-        config.razorpay.webhookSecret
+      // Generate expected signature using HMAC SHA256
+      const expectedSignature = crypto
+        .createHmac('sha256', config.razorpay.webhookSecret)
+        .update(payload)
+        .digest('hex');
+      
+      // Compare signatures (use timing-safe comparison)
+      const isValid = crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature)
       );
+      
+      if (!isValid) {
+        logger.error('Webhook signature mismatch');
+        return false;
+      }
+      
       return true;
     } catch (error) {
       logger.error(`Webhook signature verification failed: ${error?.message || error}`);
