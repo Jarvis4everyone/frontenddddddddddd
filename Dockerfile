@@ -21,6 +21,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Ensure public folder is included (Vite automatically includes it, but explicit for clarity)
 # Build the React frontend
 RUN npm run build
 

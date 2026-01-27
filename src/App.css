@@ -120,19 +120,19 @@ code {
   }
 
   body {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   h1 {
-    font-size: 24px;
+    font-size: 28px;
   }
 
   h2 {
-    font-size: 20px;
+    font-size: 24px;
   }
 
   h3 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   /* Ensure touch targets are at least 44x44px */
