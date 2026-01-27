@@ -98,6 +98,7 @@ const Dashboard = () => {
     setError('');
 
     let timeoutId = null;
+    let popupOpened = false;
 
     const resetLoading = () => {
       if (timeoutId) {
@@ -108,9 +109,9 @@ const Dashboard = () => {
     };
 
     try {
-      // Wait for Razorpay script to load (with timeout)
+      // Wait for Razorpay script to load
       let retries = 0;
-      while (!window.Razorpay && retries < 10) {
+      while (!window.Razorpay && retries < 20) {
         await new Promise(resolve => setTimeout(resolve, 100));
         retries++;
       }
@@ -134,21 +135,16 @@ const Dashboard = () => {
         throw new Error('Failed to create payment order');
       }
 
-      // Validate order data
-      if (!orderData.key_id) {
-        throw new Error('Razorpay key ID is missing');
-      }
-
       // Logo URL (skip in localhost)
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const logoUrl = isLocalhost ? undefined : `${window.location.origin}/rzplogo.png`;
 
-      // Razorpay options - MUST include key
+      // Razorpay options
       const options = {
-        key: orderData.key_id, // REQUIRED: Razorpay key ID
-        amount: orderData.amount, // Amount in paise
+        key: orderData.key_id,
+        amount: orderData.amount,
         currency: orderData.currency || 'INR',
-        order_id: orderData.order_id, // Order ID from backend
+        order_id: orderData.order_id,
         name: 'J4E',
         description: 'Monthly Subscription - Jarvis4Everyone',
         ...(logoUrl && { image: logoUrl }),
@@ -162,6 +158,7 @@ const Dashboard = () => {
         },
         handler: async function (response) {
           resetLoading();
+          popupOpened = true;
           try {
             await paymentAPI.verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
@@ -180,6 +177,7 @@ const Dashboard = () => {
         modal: {
           ondismiss: function () {
             resetLoading();
+            popupOpened = true;
           },
         },
       };
@@ -190,49 +188,60 @@ const Dashboard = () => {
       // Event handlers
       rzp.on('payment.failed', function (response) {
         resetLoading();
+        popupOpened = true;
         const errorMsg = response.error?.description || 'Payment failed';
         setError(errorMsg);
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
-      // Set timeout safety net
+      // Safety timeout - MUST reset loading after 5 seconds
       timeoutId = setTimeout(() => {
-        resetLoading();
-        setError('Payment gateway timeout. Please try again.');
-      }, 10000);
+        if (!popupOpened) {
+          resetLoading();
+          setError('Payment gateway did not open. Please try again or refresh the page.');
+        }
+      }, 5000);
 
       // Open payment popup
-      try {
-        rzp.open();
+      rzp.open();
+      popupOpened = true; // Assume it opened if no error thrown
+
+      // Verify popup actually opened and clear timeout
+      setTimeout(() => {
+        const selectors = [
+          'iframe[src*="razorpay"]',
+          'iframe[src*="checkout.razorpay.com"]',
+          '.razorpay-container',
+          '[class*="razorpay"]',
+          '#razorpay-checkout-iframe'
+        ];
         
-        // Check if popup opened successfully and clear timeout
-        setTimeout(() => {
-          const selectors = [
-            '.razorpay-container',
-            '[class*="razorpay"]',
-            '#razorpay-checkout-iframe',
-            'iframe[src*="razorpay"]',
-            'iframe[src*="checkout.razorpay.com"]'
-          ];
-          
-          for (const selector of selectors) {
-            const element = document.querySelector(selector);
-            if (element && timeoutId) {
-              clearTimeout(timeoutId);
-              timeoutId = null;
-              break;
-            }
+        let found = false;
+        for (const selector of selectors) {
+          if (document.querySelector(selector)) {
+            found = true;
+            break;
           }
-        }, 1500);
-      } catch (openError) {
-        resetLoading();
-        setError('Failed to open payment gateway. Please refresh and try again.');
-      }
+        }
+
+        if (found && timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        } else if (!found && timeoutId) {
+          // Popup didn't open, reset after short delay
+          setTimeout(() => {
+            if (timeoutId) {
+              resetLoading();
+              setError('Payment popup failed to open. Please try again.');
+            }
+          }, 2000);
+        }
+      }, 2000);
+
     } catch (err) {
       resetLoading();
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to process payment';
       setError(errorMsg);
-      console.error('Payment error:', err);
     }
   };
 
