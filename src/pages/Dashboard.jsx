@@ -194,49 +194,47 @@ const Dashboard = () => {
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
-      // Safety timeout - MUST reset loading after 5 seconds
+      // Safety timeout - ALWAYS reset loading after 5 seconds if popup didn't open
       timeoutId = setTimeout(() => {
+        resetLoading();
         if (!popupOpened) {
-          resetLoading();
           setError('Payment gateway did not open. Please try again or refresh the page.');
         }
       }, 5000);
 
       // Open payment popup
-      rzp.open();
-      popupOpened = true; // Assume it opened if no error thrown
-
-      // Verify popup actually opened and clear timeout
-      setTimeout(() => {
-        const selectors = [
-          'iframe[src*="razorpay"]',
-          'iframe[src*="checkout.razorpay.com"]',
-          '.razorpay-container',
-          '[class*="razorpay"]',
-          '#razorpay-checkout-iframe'
-        ];
+      try {
+        rzp.open();
         
-        let found = false;
-        for (const selector of selectors) {
-          if (document.querySelector(selector)) {
-            found = true;
-            break;
-          }
-        }
-
-        if (found && timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        } else if (!found && timeoutId) {
-          // Popup didn't open, reset after short delay
-          setTimeout(() => {
-            if (timeoutId) {
-              resetLoading();
-              setError('Payment popup failed to open. Please try again.');
+        // Check if popup opened after 1 second
+        setTimeout(() => {
+          const selectors = [
+            'iframe[src*="razorpay"]',
+            'iframe[src*="checkout.razorpay.com"]',
+            '.razorpay-container',
+            '[class*="razorpay"]',
+            '#razorpay-checkout-iframe'
+          ];
+          
+          let found = false;
+          for (const selector of selectors) {
+            if (document.querySelector(selector)) {
+              found = true;
+              popupOpened = true;
+              // Clear timeout if popup opened
+              if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+              }
+              break;
             }
-          }, 2000);
-        }
-      }, 2000);
+          }
+        }, 1000);
+      } catch (openError) {
+        resetLoading();
+        setError('Failed to open payment gateway. Please refresh and try again.');
+        return;
+      }
 
     } catch (err) {
       resetLoading();
