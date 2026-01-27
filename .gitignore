@@ -30,3 +30,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Download files (keep folder structure, ignore zip files)
+.downloads/*.zip
+.downloads/*.tar
+.downloads/*.gz
+!.downloads/README.md

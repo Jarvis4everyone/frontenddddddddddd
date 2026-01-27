@@ -111,7 +111,7 @@
 /* Section Box - Matching Dashboard */
 .section-box {
   width: 100%;
-  background: rgba(0, 0, 0, 0.4);
+  background: #000000;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 2px solid rgba(255, 255, 255, 0.15);
@@ -248,6 +248,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: 'Poppins', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .cancel-button:hover:not(:disabled) {
@@ -310,7 +314,7 @@
 
 .form-group input {
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.3);
+  background: #000000;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   font-size: 16px;
@@ -323,19 +327,19 @@
   outline: none;
   border-color: rgba(255, 255, 255, 0.3);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.4);
+  background: #000000;
 }
 
 .form-group input:disabled {
-  background: rgba(0, 0, 0, 0.2);
+  background: #000000;
   color: rgba(255, 255, 255, 0.5);
   cursor: not-allowed;
 }
 
 .form-note {
   padding: 12px;
-  background: rgba(59, 130, 246, 0.1);
-  border-left: 4px solid rgba(59, 130, 246, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.8);
@@ -360,6 +364,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: 'Poppins', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .save-button:hover:not(:disabled) {

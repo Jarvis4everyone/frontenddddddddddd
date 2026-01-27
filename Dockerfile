@@ -1,11 +1,12 @@
-# Build stage
+# Multi-stage build for integrated Node.js + React application
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Accept build arguments for API URL (support both naming conventions)
-ARG VITE_API_URL=https://backend-gchd.onrender.com
-ARG VITE_API_BASE_URL=https://backend-gchd.onrender.com
+# Accept build arguments for API URL (for Vite build)
+# In integrated deployment, these should point to the same service URL
+ARG VITE_API_URL
+ARG VITE_API_BASE_URL
 
 # Set as environment variables for Vite build
 ENV VITE_API_URL=$VITE_API_URL
@@ -20,20 +21,32 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the React frontend
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Production stage - Use Node.js to serve both API and frontend
+FROM node:18-alpine
 
-# Copy built files from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+WORKDIR /app
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy package files
+COPY package*.json ./
 
-# Expose port 80
-EXPOSE 80
+# Install production dependencies only
+RUN npm ci --only=production
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Copy built frontend from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy backend source code
+COPY server.js ./
+COPY backend ./backend
+
+# Copy downloads folder (contains jarvis4everyone.zip)
+COPY .downloads ./.downloads
+
+# Expose port (Render will set PORT environment variable)
+EXPOSE 5000
+
+# Start the integrated server
+CMD ["node", "server.js"]

@@ -1,0 +1,148 @@
+const express = require('express');
+const router = express.Router();
+const PaymentService = require('../services/paymentService');
+const SubscriptionService = require('../services/subscriptionService');
+const { getCurrentUser } = require('../middleware/auth');
+const config = require('../config');
+const logger = require('../utils/logger');
+
+/**
+ * Create Razorpay order for payment
+ */
+router.post('/create-order', getCurrentUser, async (req, res, next) => {
+  try {
+    const { amount, currency = 'INR' } = req.body;
+    
+    if (!amount) {
+      return res.status(400).json({ detail: 'Amount is required' });
+    }
+    
+    // Create Razorpay order
+    const order = await PaymentService.createOrder(amount, currency);
+    
+    // Create payment record
+    const payment = await PaymentService.createPaymentRecord(
+      req.user.id,
+      req.user.email,
+      amount,
+      currency,
+      order.id
+    );
+    
+    res.json({
+      order_id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key_id: config.razorpay.keyId,
+      payment_id: payment.id
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Verify Razorpay payment and activate subscription
+ */
+router.post('/verify', getCurrentUser, async (req, res, next) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ detail: 'All payment fields are required' });
+    }
+    
+    // Get payment record
+    const payment = await PaymentService.getPaymentByOrderId(razorpay_order_id);
+    if (!payment) {
+      return res.status(404).json({ detail: 'Payment record not found' });
+    }
+    
+    // Verify payment belongs to current user
+    if (payment.user_id !== req.user.id) {
+      return res.status(403).json({ detail: 'Payment does not belong to current user' });
+    }
+    
+    // Verify payment signature
+    const isValid = await PaymentService.verifyPayment(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    );
+    
+    if (!isValid) {
+      return res.status(400).json({ detail: 'Invalid payment signature' });
+    }
+    
+    // Update payment status
+    const updatedPayment = await PaymentService.updatePaymentStatus(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      'completed'
+    );
+    
+    // Activate subscription (1 month for now)
+    await SubscriptionService.renewSubscription(req.user.id, 1);
+    
+    res.json(updatedPayment);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Handle Razorpay webhook (for payment status updates)
+ */
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res, next) => {
+  try {
+    // Get webhook signature from headers
+    const signature = req.headers['x-razorpay-signature'];
+    if (!signature) {
+      return res.status(400).json({ detail: 'Missing webhook signature' });
+    }
+    
+    // Get request body as string
+    const bodyStr = req.body.toString('utf-8');
+    
+    // Verify webhook signature
+    const isValid = await PaymentService.verifyWebhookSignature(bodyStr, signature);
+    if (!isValid) {
+      return res.status(400).json({ detail: 'Invalid webhook signature' });
+    }
+    
+    // Parse webhook payload
+    const payload = JSON.parse(bodyStr);
+    const event = payload.event;
+    
+    if (event === 'payment.captured') {
+      // Payment successful
+      const paymentData = payload.payload?.payment?.entity || {};
+      const orderId = paymentData.order_id;
+      
+      if (orderId) {
+        const payment = await PaymentService.getPaymentByOrderId(orderId);
+        if (payment && payment.status === 'pending') {
+          await PaymentService.updatePaymentStatus(
+            orderId,
+            paymentData.id || '',
+            signature,
+            'completed'
+          );
+          
+          // Activate subscription if user exists
+          if (payment.user_id) {
+            await SubscriptionService.renewSubscription(payment.user_id, 1);
+          }
+        }
+      }
+    }
+    
+    res.json({ status: 'success' });
+  } catch (error) {
+    logger.error(`Webhook processing error: ${error.message}`);
+    next(error);
+  }
+});
+
+module.exports = router;

@@ -1,16 +1,12 @@
 services:
   - type: web
-    name: jarvis4everyone-frontend
+    name: jarvis4everyone
     env: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: free
-    envVars:
-      - key: VITE_API_URL
-        sync: false
-        value: https://backend-gchd.onrender.com
-      - key: VITE_API_BASE_URL
-        sync: false
-        value: https://backend-gchd.onrender.com
     healthCheckPath: /health
     autoDeploy: true
+    # Note: Set all environment variables in Render Dashboard
+    # The app serves both backend API (/api/*) and frontend (/*) from the same service
+    # For VITE_API_URL and VITE_API_BASE_URL, use your Render service URL (will be provided after deployment)

@@ -4,6 +4,59 @@ import { paymentAPI, isSubscriptionActive, contactAPI } from '../services/api';
 import SubscriptionService from '../services/subscriptionService';
 import './Dashboard.css';
 
+// Image Gallery Component
+const ImageGallery = () => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [images] = useState(() => {
+    // Generate array of image paths from 1.png to 13.png
+    return Array.from({ length: 13 }, (_, i) => `/PDF/${i + 1}.png`);
+  });
+
+  const goToSlide = (index) => {
+    setCurrentIndex(index);
+  };
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+  };
+
+  return (
+    <div className="gallery-container">
+      <div className="gallery-main">
+        <button className="gallery-nav-button prev" onClick={goToPrevious} aria-label="Previous">
+          ‹
+        </button>
+        <div className="gallery-slide-wrapper">
+          <div 
+            className="gallery-slides" 
+            style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+          >
+            {images.map((image, index) => (
+              <div key={index} className="gallery-slide">
+                <img 
+                  src={image} 
+                  alt={`Tutorial ${index + 1}`}
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+        <button className="gallery-nav-button next" onClick={goToNext} aria-label="Next">
+          ›
+        </button>
+      </div>
+      <div className="gallery-indicator">
+        <span>{currentIndex + 1} / {images.length}</span>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const { user, subscription, refreshSubscription } = useAuth();
   const [error, setError] = useState('');
@@ -172,26 +225,43 @@ const Dashboard = () => {
               </div>
               <h1 className="hero-title">Jarvis4Everyone</h1>
               <p className="hero-description">
-                Get access to the latest source code of Jarvis, ongoing tutorial series on YouTube, 
-                and comprehensive documentation with setup and deployment guides. Join thousands of 
-                developers learning AI automation, build powerful assistants, and transform your 
-                workflow with cutting-edge technology and expert guidance.
+                Gain exclusive access to the latest source code from our comprehensive tutorial series. 
+                Receive continuous updates synchronized with each new release, ensuring you always have 
+                the most current implementation. Every download package includes complete documentation, 
+                detailed setup guides, tutorial videos, README files with technical explanations, 
+                and dedicated remote support for seamless deployment.
               </p>
               
               <div className="hero-divider"></div>
               
               <div className="hero-buttons">
                 <a href="https://kaushikshresth.graphy.com/" target="_blank" rel="noopener noreferrer" className="hero-button">
-                  UNACADEMY
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                  </svg>
+                  <span>MAIN WEBSITE</span>
                 </a>
                 <a href="https://www.youtube.com/@theshreshthkaushik" target="_blank" rel="noopener noreferrer" className="hero-button">
-                  YOUTUBE
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>YOUTUBE</span>
                 </a>
                 <a href="https://www.instagram.com/theshreshthkaushik/" target="_blank" rel="noopener noreferrer" className="hero-button">
-                  INSTAGRAM
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                  </svg>
+                  <span>INSTAGRAM</span>
                 </a>
                 <a href="https://t.me/theshreshthkaushik" target="_blank" rel="noopener noreferrer" className="hero-button">
-                  TELEGRAM
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                  <span>TELEGRAM</span>
                 </a>
               </div>
             </div>
@@ -206,8 +276,12 @@ const Dashboard = () => {
             <h2 className="section-title">Choose Your Plan</h2>
             <p className="subscription-intro">
               {price 
-                ? `Subscribe to the complete Jarvis AI source code for just ₹${price.toFixed(2)}/month. Unlimited customization and instant access to every new update while you stay subscribed. Start building your personal AI assistant today!`
-                : 'Subscribe to the complete Jarvis AI source code. Unlimited customization and instant access to every new update while you stay subscribed. Start building your personal AI assistant today!'
+                ? `Unlock continuous access to the latest source code updates from our tutorial series. 
+                Get instant downloads of updated code, comprehensive tutorial videos, detailed setup guides, 
+                and complete documentation. Stay ahead with every release for just ₹${price.toFixed(2)}/month.`
+                : `Unlock continuous access to the latest source code updates from our tutorial series. 
+                Get instant downloads of updated code, comprehensive tutorial videos, detailed setup guides, 
+                and complete documentation. Stay ahead with every release.`
               }
             </p>
             <div className="subscription-card">
@@ -223,96 +297,32 @@ const Dashboard = () => {
                     </>
                   )}
                 </div>
-                <p className="plan-description">Complete source code access + all future updates - Monthly subscription</p>
+                <p className="plan-description">Latest source code from YouTube tutorial series + all updates - Monthly subscription</p>
               </div>
               <div className="plan-features-grid">
                 <div className="feature-item">
                   <span className="feature-icon">✓</span>
-                  <span>Complete Source Code — Full access to all Jarvis AI codebase</span>
+                  <span>Latest Source Code — Download the most recent code from our YouTube tutorial series</span>
                 </div>
                 <div className="feature-item">
                   <span className="feature-icon">✓</span>
-                  <span>Every Update Included — New features & source code drops released instantly to subscribers</span>
+                  <span>Always Updated — Source code updated with every new tutorial video release</span>
                 </div>
                 <div className="feature-item">
                   <span className="feature-icon">✓</span>
-                  <span>Voice & Video Interaction — Talk naturally and see your AI respond face-to-face</span>
+                  <span>Tutorial Videos — Step-by-step video guides showing setup and implementation</span>
                 </div>
                 <div className="feature-item">
                   <span className="feature-icon">✓</span>
-                  <span>Unlimited Usage — No limits, use it as much as you want</span>
+                  <span>README Files — Comprehensive documentation for easy setup</span>
                 </div>
                 <div className="feature-item">
                   <span className="feature-icon">✓</span>
-                  <span>Image Generation — Bring your ideas to life visually</span>
+                  <span>Explanation Documents — Detailed guides explaining how everything works</span>
                 </div>
                 <div className="feature-item">
                   <span className="feature-icon">✓</span>
-                  <span>All Operating Systems Supported — Windows, macOS, Android, iOS</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Multiple Voices & Languages — Choose any voice, male or female, in any language</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Priority Support — Get help when you need it</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Open/close apps and websites</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Search instantly on Google & YouTube</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Play music</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Write code & content for you</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Generate images</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Hold smart, human-like conversations</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Fully personalized: rename your AI anytime</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Remembers you and your preferences</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Full internet access</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Self-learning & always improving</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Super fast & easy to set up</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Next-Level Insight Tool — Search for public information</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Most Advanced Self-Learning — Continuously evolves</span>
-                </div>
-                <div className="feature-item">
-                  <span className="feature-icon">✓</span>
-                  <span>Maximum Productivity — Designed for power users</span>
+                  <span>Remote Support — Get help when you face any issues during setup</span>
                 </div>
               </div>
               {(!subscription || !isSubscriptionActive(subscription)) ? (
@@ -322,10 +332,34 @@ const Dashboard = () => {
                   disabled={paymentLoading || !price || priceLoading}
                 >
                   {paymentLoading 
-                    ? 'Processing...' 
+                    ? (
+                      <>
+                        <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>Processing...</span>
+                      </>
+                    )
                     : price 
-                      ? `Buy now for only ₹${price.toFixed(2)}/month`
-                      : 'Loading price...'
+                      ? (
+                        <>
+                          <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                          </svg>
+                          <span>Buy now for only ₹{price.toFixed(2)}/month</span>
+                        </>
+                      )
+                      : (
+                        <>
+                          <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          <span>Loading price...</span>
+                        </>
+                      )
                   }
                 </button>
               ) : (
@@ -340,6 +374,47 @@ const Dashboard = () => {
                 </div>
               )}
               {error && <div className="error-message">{error}</div>}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Image Gallery Section */}
+      <section className="gallery-section">
+        <div className="section-container">
+          <div className="section-box">
+            <h2 className="section-title">The Most Advanced AI Assistant Tutorials</h2>
+            <p className="gallery-description">
+              The Most Advanced AI Assistant Tutorial Series on the Entire Internet. Creating J.A.R.V.I.S - An Advanced, Multi-Language AI Assistant Built from Absolute Scratch Using the Most Powerful Modern Technologies.
+            </p>
+            <div className="gallery-content">
+              <ImageGallery />
+              <div className="gallery-buttons">
+                <a 
+                  href="https://www.youtube.com/watch?v=CqSsGvg0Mls&list=PLkjZS1KzvTGH0OLXe-4nfvFtz42rTWaUI&pp=gAQB0gcJCbYEOCosWNinsAgC" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="gallery-button"
+                >
+                  <svg className="button-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>Watch Tutorial Playlist</span>
+                </a>
+                <a 
+                  href="https://www.youtube.com/channel/UC7A5u12yVIZaCO_uXnNhc5g" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="gallery-button"
+                >
+                  <svg className="button-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                  </svg>
+                  <span>Visit YouTube Channel</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -366,10 +441,34 @@ const Dashboard = () => {
                 Kaushik's goal is to help people turn knowledge into real-world skills and confidence.
               </p>
               <div className="social-links">
-                <a href="https://kaushikshresth.graphy.com/" target="_blank" rel="noopener noreferrer" className="social-link">UNACADEMY</a>
-                <a href="https://www.youtube.com/@theshreshthkaushik" target="_blank" rel="noopener noreferrer" className="social-link">YOUTUBE</a>
-                <a href="https://www.instagram.com/theshreshthkaushik/" target="_blank" rel="noopener noreferrer" className="social-link">INSTAGRAM</a>
-                <a href="https://t.me/theshreshthkaushik" target="_blank" rel="noopener noreferrer" className="social-link">TELEGRAM</a>
+                <a href="https://kaushikshresth.graphy.com/" target="_blank" rel="noopener noreferrer" className="social-link">
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                  </svg>
+                  <span>UNACADEMY</span>
+                </a>
+                <a href="https://www.youtube.com/@theshreshthkaushik" target="_blank" rel="noopener noreferrer" className="social-link">
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>YOUTUBE</span>
+                </a>
+                <a href="https://www.instagram.com/theshreshthkaushik/" target="_blank" rel="noopener noreferrer" className="social-link">
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                  </svg>
+                  <span>INSTAGRAM</span>
+                </a>
+                <a href="https://t.me/theshreshthkaushik" target="_blank" rel="noopener noreferrer" className="social-link">
+                  <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                  <span>TELEGRAM</span>
+                </a>
               </div>
             </div>
           </div>
@@ -491,7 +590,23 @@ const Dashboard = () => {
                     className="submit-button"
                     disabled={contactLoading}
                   >
-                    {contactLoading ? 'Sending...' : 'Send Message'}
+                    {contactLoading ? (
+                      <>
+                        <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        <span>Send Message</span>
+                      </>
+                    )}
                   </button>
                 </form>
               </div>
@@ -511,18 +626,69 @@ const Dashboard = () => {
             <div className="footer-section">
               <h4>Quick Links</h4>
               <ul>
-                <li><a href="/dashboard">Dashboard</a></li>
-                <li><a href="/profile">Profile</a></li>
-                <li><a href="/downloads">Downloads</a></li>
+                <li>
+                  <a href="/dashboard">
+                    <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="14" width="7" height="7"></rect>
+                      <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/profile">
+                    <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Profile</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/downloads">
+                    <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Downloads</span>
+                  </a>
+                </li>
               </ul>
             </div>
             <div className="footer-section">
               <h4>Connect</h4>
               <div className="footer-social">
-                <a href="https://kaushikshresth.graphy.com/" target="_blank" rel="noopener noreferrer">Unacademy</a>
-                <a href="https://www.youtube.com/@theshreshthkaushik" target="_blank" rel="noopener noreferrer">YouTube</a>
-                <a href="https://www.instagram.com/theshreshthkaushik/" target="_blank" rel="noopener noreferrer">Instagram</a>
-                <a href="https://t.me/theshreshthkaushik" target="_blank" rel="noopener noreferrer">Telegram</a>
+                <a href="https://kaushikshresth.graphy.com/" target="_blank" rel="noopener noreferrer">
+                  <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                  </svg>
+                  <span>Unacademy</span>
+                </a>
+                <a href="https://www.youtube.com/@theshreshthkaushik" target="_blank" rel="noopener noreferrer">
+                  <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>YouTube</span>
+                </a>
+                <a href="https://www.instagram.com/theshreshthkaushik/" target="_blank" rel="noopener noreferrer">
+                  <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                  </svg>
+                  <span>Instagram</span>
+                </a>
+                <a href="https://t.me/theshreshthkaushik" target="_blank" rel="noopener noreferrer">
+                  <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                  <span>Telegram</span>
+                </a>
               </div>
             </div>
             <div className="footer-section">
@@ -536,9 +702,42 @@ const Dashboard = () => {
           <div className="footer-bottom">
             <p>&copy; 2026 The Shreshth Kaushik. All rights reserved.</p>
             <div className="footer-links">
-              <a href="#privacy">Privacy Policy</a>
-              <a href="#terms">Terms of Use</a>
-              <a href="#refund">Refund Policy</a>
+              <a href="https://www.youtube.com/watch?v=CqSsGvg0Mls&list=PLkjZS1KzvTGH0OLXe-4nfvFtz42rTWaUI&pp=gAQBsAgC" target="_blank" rel="noopener noreferrer" className="footer-link-button">
+                <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>SEE TUTORIALS</span>
+              </a>
+              <a href="https://www.instagram.com/theshreshthkaushik/" target="_blank" rel="noopener noreferrer" className="footer-link-button">
+                <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                </svg>
+                <span>INSTAGRAM</span>
+              </a>
+              <a href="https://www.instagram.com/jarvis4everyone/" target="_blank" rel="noopener noreferrer" className="footer-link-button">
+                <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                </svg>
+                <span>J4E INSTAGRAM</span>
+              </a>
+              <a href="https://t.me/theshreshthkaushik" target="_blank" rel="noopener noreferrer" className="footer-link-button">
+                <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                <span>TELEGRAM</span>
+              </a>
+              <a href="https://kaushikshresth.graphy.com/" target="_blank" rel="noopener noreferrer" className="footer-link-button">
+                <svg className="button-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                  <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                </svg>
+                <span>MAIN WEBSITE</span>
+              </a>
             </div>
           </div>
         </div>

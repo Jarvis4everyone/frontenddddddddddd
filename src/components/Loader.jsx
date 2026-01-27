@@ -4,8 +4,12 @@ const Loader = () => {
   return (
     <div className="loader-container">
       <div className="loader-content">
-        <div className="loader-gif">
-          <img src="/jarvis.gif" alt="Loading" />
+        <div className="loader-icon">
+          <div className="loader-spinner">
+            <div className="spinner-ring"></div>
+            <div className="spinner-ring"></div>
+            <div className="spinner-ring"></div>
+          </div>
         </div>
         <div className="loader-text">
           <h2>Jarvis4Everyone</h2>

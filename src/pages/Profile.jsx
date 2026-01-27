@@ -53,19 +53,19 @@ const Profile = () => {
     if (status === 'active' && subscription) {
       const isActive = isSubscriptionActive(subscription);
       if (!isActive) {
-        return '#dc3545'; // Show as expired if past end_date
+        return '#000000'; // Black background for expired
       }
     }
     
     switch (status) {
       case 'active':
-        return '#28a745';
+        return '#ffffff'; // White background for active
       case 'expired':
-        return '#dc3545';
+        return '#000000'; // Black background for expired
       case 'cancelled':
-        return '#ffc107';
+        return '#000000'; // Black background for cancelled
       default:
-        return '#6c757d';
+        return '#000000'; // Black background for default
     }
   };
 
@@ -102,7 +102,10 @@ const Profile = () => {
                         <span className="info-label">Status</span>
                         <span
                           className="info-value status-badge"
-                          style={{ backgroundColor: getStatusColor(subscription.status, subscription) }}
+                          style={{ 
+                            backgroundColor: getStatusColor(subscription.status, subscription),
+                            color: getStatusColor(subscription.status, subscription) === '#ffffff' ? '#000000' : '#ffffff'
+                          }}
                         >
                           {getDisplayStatus(subscription)}
                         </span>
@@ -182,12 +185,6 @@ const Profile = () => {
                           <span className="info-value">{user.contact_number || 'Not provided'}</span>
                         </div>
                         <div className="info-item">
-                          <span className="info-label">Account Type</span>
-                          <span className="info-value">
-                            {user.is_admin ? 'Administrator' : 'User'}
-                          </span>
-                        </div>
-                        <div className="info-item">
                           <span className="info-label">Member Since</span>
                           <span className="info-value">
                             {new Date(user.created_at).toLocaleDateString()}
@@ -228,7 +225,7 @@ const Profile = () => {
                           />
                         </div>
                         <div className="form-note">
-                          <p>Note: Email and account type cannot be changed.</p>
+                          <p>Note: Email cannot be changed.</p>
                         </div>
                         <div className="form-actions">
                           <button
@@ -244,14 +241,33 @@ const Profile = () => {
                             }}
                             className="cancel-button"
                           >
-                            Cancel
+                            <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                            <span>Cancel</span>
                           </button>
                           <button
                             type="submit"
                             className="save-button"
                             disabled={profileLoading}
                           >
-                            {profileLoading ? 'Saving...' : 'Save Changes'}
+                            {profileLoading ? (
+                              <>
+                                <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                  <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                <span>Saving...</span>
+                              </>
+                            ) : (
+                              <>
+                                <svg className="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>Save Changes</span>
+                              </>
+                            )}
                           </button>
                         </div>
                         {profileError && <div className="error-message">{profileError}</div>}

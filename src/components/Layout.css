@@ -11,7 +11,7 @@
 }
 
 .navbar {
-  background: rgba(0, 0, 0, 0.75);
+  background: #000000;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
@@ -81,6 +81,10 @@
   white-space: nowrap;
   background: transparent;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .nav-link::before {
@@ -194,7 +198,7 @@
 }
 
 .subscription-banner {
-  background: rgba(0, 0, 0, 0.4);
+  background: #000000;
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
@@ -214,7 +218,7 @@
 
 .subscription-status strong {
   text-transform: capitalize;
-  color: #60a5fa;
+  color: #ffffff;
 }
 
 .subscription-date {
@@ -263,7 +267,7 @@
     top: 70px;
     left: 0;
     width: 100%;
-    background: rgba(0, 0, 0, 0.95);
+    background: #000000;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     flex-direction: column;
@@ -346,7 +350,7 @@
     top: 65px;
     left: 0;
     width: 100%;
-    background: rgba(0, 0, 0, 0.98);
+    background: #000000;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     flex-direction: column;

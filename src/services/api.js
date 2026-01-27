@@ -35,12 +35,8 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Try to refresh token
-        const response = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
+        // Try to refresh token - use api instance to go through proxy
+        const response = await api.post('/auth/refresh', {});
         const { access_token } = response.data;
         localStorage.setItem('access_token', access_token);
 
@@ -93,18 +89,12 @@ export const contactAPI = {
     // Get token if user is logged in
     const token = localStorage.getItem('access_token');
     
-    // Use axios directly to have full control over headers
-    const response = await axios.post(
-      `${API_BASE_URL}/contact`,
-      contactData,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        withCredentials: true
-      }
-    );
+    // Use api instance but add auth header if token exists
+    const config = {};
+    if (token) {
+      config.headers = { 'Authorization': `Bearer ${token}` };
+    }
+    const response = await api.post('/contact', contactData, config);
     return response.data;
   },
 };
@@ -149,10 +139,8 @@ export const subscriptionAPI = {
   },
 
   getPrice: async () => {
-    // Public endpoint, no auth required
-    const response = await axios.get(`${API_BASE_URL}/subscriptions/price`, {
-      withCredentials: true,
-    });
+    // Public endpoint, no auth required - use api instance to go through proxy
+    const response = await api.get('/subscriptions/price');
     return response.data;
   },
 

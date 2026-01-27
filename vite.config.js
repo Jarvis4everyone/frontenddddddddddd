@@ -7,11 +7,12 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
+        target: 'http://localhost:5000',  // Always use local backend in development
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        rewrite: (path) => path  // Keep path as-is (already has /api prefix)
       }
     }
   }
 })
 
+ 
