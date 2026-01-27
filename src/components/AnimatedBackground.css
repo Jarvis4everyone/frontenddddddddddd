@@ -8,10 +8,9 @@
   width: 100%;
   height: 100%;
   background: #000000;
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
   pointer-events: none;
   z-index: 0;
+  /* Removed heavy gradient animation for better performance */
 }
 
 @keyframes gradientShift {
@@ -60,7 +59,8 @@
   );
   pointer-events: none;
   z-index: 2;
-  animation: overlayPulse 8s ease-in-out infinite;
+  /* Removed pulse animation for better performance */
+  will-change: auto;
 }
 
 @keyframes overlayPulse {
@@ -89,7 +89,8 @@
   opacity: 0.4;
   pointer-events: none;
   z-index: 3;
-  animation: gridMove 20s linear infinite;
+  /* Removed grid animation for better performance */
+  will-change: auto;
 }
 
 @keyframes gridMove {
@@ -101,7 +102,7 @@
   }
 }
 
-/* Glowing orbs effect - Black and white theme */
+/* Glowing orbs effect - Black and white theme - Optimized for performance */
 .animated-bg-glow {
   position: fixed;
   top: 0;
@@ -116,8 +117,9 @@
     radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
     radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
-  animation: glowMove 12s ease-in-out infinite;
-  filter: blur(60px);
+  /* Removed animation and reduced blur for better performance */
+  filter: blur(40px);
+  will-change: auto;
 }
 
 @keyframes glowMove {

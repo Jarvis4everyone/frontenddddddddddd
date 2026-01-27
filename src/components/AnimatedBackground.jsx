@@ -12,13 +12,28 @@ const AnimatedBackground = memo(function AnimatedBackground() {
     let animationFrameId;
     let particles = [];
 
-    // Set canvas size
+    // Set canvas size with debouncing for performance
+    let resizeTimeout;
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      // Recreate particles on resize
+      particles = [];
+      const isMobile = window.innerWidth <= 768;
+      const baseArea = isMobile ? 15000 : 25000;
+      const maxParticles = isMobile ? 80 : 60;
+      const particleCount = Math.min(Math.floor((canvas.width * canvas.height) / baseArea), maxParticles);
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
     };
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(resizeCanvas, 250); // Debounce resize
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
 
     // Particle class
     class Particle {
@@ -49,36 +64,61 @@ const AnimatedBackground = memo(function AnimatedBackground() {
       }
     }
 
-    // Create particles
-    const particleCount = Math.floor((canvas.width * canvas.height) / 15000);
+    // Create particles - optimized for performance
+    // Reduce particle count on larger screens to maintain 60fps
+    const isMobile = window.innerWidth <= 768;
+    const baseArea = isMobile ? 15000 : 25000; // Less particles on desktop
+    const maxParticles = isMobile ? 80 : 60; // Cap maximum particles
+    const particleCount = Math.min(Math.floor((canvas.width * canvas.height) / baseArea), maxParticles);
+    
     for (let i = 0; i < particleCount; i++) {
       particles.push(new Particle());
     }
 
-    // Animation loop
+    // Optimized animation loop with reduced connection checks
+    let frameCount = 0;
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      frameCount++;
 
-      // Draw connections
-      particles.forEach((particle, i) => {
+      // Update and draw particles
+      particles.forEach((particle) => {
         particle.update();
         particle.draw();
-
-        particles.slice(i + 1).forEach((otherParticle) => {
-          const dx = particle.x - otherParticle.x;
-          const dy = particle.y - otherParticle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          if (distance < 120) {
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - distance / 120)})`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(particle.x, particle.y);
-            ctx.lineTo(otherParticle.x, otherParticle.y);
-            ctx.stroke();
-          }
-        });
       });
+
+      // Only draw connections every other frame on desktop for better performance
+      const shouldDrawConnections = isMobile || frameCount % 2 === 0;
+      
+      if (shouldDrawConnections) {
+        // Optimized connection drawing - use distance squared to avoid sqrt when possible
+        const connectionDistance = 120;
+        const connectionDistanceSq = connectionDistance * connectionDistance;
+        
+        for (let i = 0; i < particles.length; i++) {
+          const particle = particles[i];
+          // Only check nearby particles (skip every other particle on desktop)
+          const step = isMobile ? 1 : 2;
+          
+          for (let j = i + step; j < particles.length; j += step) {
+            const otherParticle = particles[j];
+            const dx = particle.x - otherParticle.x;
+            const dy = particle.y - otherParticle.y;
+            const distanceSq = dx * dx + dy * dy;
+
+            if (distanceSq < connectionDistanceSq) {
+              const distance = Math.sqrt(distanceSq);
+              const opacity = 0.1 * (1 - distance / connectionDistance);
+              ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+              ctx.lineWidth = 0.5;
+              ctx.beginPath();
+              ctx.moveTo(particle.x, particle.y);
+              ctx.lineTo(otherParticle.x, otherParticle.y);
+              ctx.stroke();
+            }
+          }
+        }
+      }
 
       animationFrameId = requestAnimationFrame(animate);
     };
@@ -86,7 +126,8 @@ const AnimatedBackground = memo(function AnimatedBackground() {
     animate();
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);

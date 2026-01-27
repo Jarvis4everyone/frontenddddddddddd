@@ -104,8 +104,8 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Get absolute URL for image
-      const imageUrl = `${window.location.origin}/image.jpg`;
+      // Get absolute URL for image - Razorpay requires publicly accessible URL
+      const imageUrl = `${window.location.protocol}//${window.location.host}/image.jpg`;
       
       const options = {
         key: orderData.key_id,
