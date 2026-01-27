@@ -3,25 +3,52 @@ const { getDatabase, getObjectId } = require('../config/database');
 const config = require('../config');
 const logger = require('../utils/logger');
 
-// Initialize Razorpay client
-const razorpayClient = new Razorpay({
-  key_id: config.razorpay.keyId,
-  key_secret: config.razorpay.keySecret
-});
+// Initialize Razorpay client with validation
+let razorpayClient = null;
+
+try {
+  if (!config.razorpay.keyId || !config.razorpay.keySecret) {
+    logger.warn('⚠ Razorpay credentials not configured. Payment features will not work.');
+  } else {
+    razorpayClient = new Razorpay({
+      key_id: config.razorpay.keyId,
+      key_secret: config.razorpay.keySecret
+    });
+    logger.info('✓ Razorpay client initialized successfully');
+  }
+} catch (error) {
+  logger.error(`✗ Failed to initialize Razorpay client: ${error.message}`);
+}
 
 class PaymentService {
   /**
    * Create Razorpay order
    */
   static async createOrder(amount, currency = 'INR') {
-    const orderData = {
-      amount: Math.round(amount * 100), // Convert to paise
-      currency: currency,
-      payment_capture: 1
-    };
-    
-    const order = await razorpayClient.orders.create(orderData);
-    return order;
+    if (!razorpayClient) {
+      throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+    }
+
+    if (!config.razorpay.keyId || !config.razorpay.keySecret) {
+      throw new Error('Razorpay credentials are missing. Please configure RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
+    }
+
+    try {
+      const orderData = {
+        amount: Math.round(amount * 100), // Convert to paise
+        currency: currency,
+        payment_capture: 1
+      };
+      
+      logger.info(`Creating Razorpay order: ${orderData.amount} ${currency}`);
+      const order = await razorpayClient.orders.create(orderData);
+      logger.info(`✓ Razorpay order created: ${order.id}`);
+      return order;
+    } catch (error) {
+      logger.error(`✗ Failed to create Razorpay order: ${error.message}`);
+      logger.error(`Error details: ${JSON.stringify(error)}`);
+      throw new Error(`Failed to create payment order: ${error.message || 'Unknown error'}`);
+    }
   }
 
   /**
@@ -50,6 +77,11 @@ class PaymentService {
    * Verify Razorpay payment signature
    */
   static async verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature) {
+    if (!razorpayClient) {
+      logger.error('Razorpay client not initialized');
+      return false;
+    }
+
     try {
       const params = {
         razorpay_order_id: razorpayOrderId,
@@ -60,7 +92,7 @@ class PaymentService {
       razorpayClient.utility.verify_payment_signature(params);
       return true;
     } catch (error) {
-      logger.error(`Payment verification failed for order ${razorpayOrderId}: ${error.message}`);
+      logger.error(`Payment verification failed for order ${razorpayOrderId}: ${error?.message || error}`);
       return false;
     }
   }
@@ -123,6 +155,11 @@ class PaymentService {
    * Verify Razorpay webhook signature
    */
   static async verifyWebhookSignature(payload, signature) {
+    if (!razorpayClient) {
+      logger.error('Razorpay client not initialized');
+      return false;
+    }
+
     try {
       razorpayClient.utility.verify_webhook_signature(
         payload,
@@ -131,7 +168,7 @@ class PaymentService {
       );
       return true;
     } catch (error) {
-      logger.error(`Webhook signature verification failed: ${error.message}`);
+      logger.error(`Webhook signature verification failed: ${error?.message || error}`);
       return false;
     }
   }

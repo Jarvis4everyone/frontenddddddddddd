@@ -16,6 +16,12 @@ router.post('/create-order', getCurrentUser, async (req, res, next) => {
     if (!amount) {
       return res.status(400).json({ detail: 'Amount is required' });
     }
+
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ detail: 'Amount must be a positive number' });
+    }
+    
+    logger.info(`Creating payment order for user ${req.user.email}: ${amount} ${currency}`);
     
     // Create Razorpay order
     const order = await PaymentService.createOrder(amount, currency);
@@ -29,6 +35,8 @@ router.post('/create-order', getCurrentUser, async (req, res, next) => {
       order.id
     );
     
+    logger.info(`✓ Payment order created successfully: ${order.id}`);
+    
     res.json({
       order_id: order.id,
       amount: order.amount,
@@ -37,7 +45,15 @@ router.post('/create-order', getCurrentUser, async (req, res, next) => {
       payment_id: payment.id
     });
   } catch (error) {
-    next(error);
+    logger.error(`Error creating payment order: ${error.message}`);
+    logger.error(`Error stack: ${error.stack}`);
+    
+    // Return more detailed error message
+    const errorMessage = error.message || 'Failed to create payment order';
+    res.status(500).json({ 
+      detail: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

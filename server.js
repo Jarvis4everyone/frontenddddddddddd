@@ -121,14 +121,18 @@ if (process.env.NODE_ENV === 'production') {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  logger.error(`Error: ${err.message}`, { stack: err.stack });
+  const errorMessage = err?.message || err?.toString() || 'Internal server error';
+  const errorStack = err?.stack || 'No stack trace available';
+  
+  logger.error(`Error: ${errorMessage}`, { stack: errorStack });
   
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({ detail: 'CORS policy violation' });
   }
   
   res.status(err.status || 500).json({
-    detail: err.message || 'Internal server error'
+    detail: errorMessage,
+    ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
   });
 });
 
