@@ -174,8 +174,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Jarvis4Everyone',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        // Logo is optional - Razorpay will handle if it fails to load
-        image: `${window.location.origin}/rzplogo.png`,
+        // Logo removed - not using image to avoid any loading issues
         prefill: {
           name: user?.name || '',
           email: user?.email || '',
