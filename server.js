@@ -105,9 +105,12 @@ app.get('/api', (req, res) => {
   });
 });
 
-// Serve static files from React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'dist')));
+// Serve static files from React app (if dist folder exists - production build)
+const distPath = path.join(__dirname, 'dist');
+const fs = require('fs');
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
   
   // Serve React app for all non-API routes
   app.get('*', (req, res) => {
@@ -115,8 +118,12 @@ if (process.env.NODE_ENV === 'production') {
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ detail: 'API endpoint not found' });
     }
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    res.sendFile(path.join(distPath, 'index.html'));
   });
+  
+  logger.info('✓ Frontend static files enabled (dist folder found)');
+} else {
+  logger.warn('⚠ Frontend dist folder not found - API only mode');
 }
 
 // Error handling middleware
