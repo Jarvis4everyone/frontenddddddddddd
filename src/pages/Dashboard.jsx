@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentAPI, isSubscriptionActive, contactAPI } from '../services/api';
 import SubscriptionService from '../services/subscriptionService';
+import { getRazorpayImage } from '../utils/razorpayImage';
 import './Dashboard.css';
 
 // Image Gallery Component
@@ -104,28 +105,10 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Load base64 image data from file
-      let imageUrl = null;
-      try {
-        const response = await fetch('/base64.image');
-        if (response.ok) {
-          const base64Data = await response.text();
-          // Ensure it's a valid data URI format
-          if (base64Data.trim().startsWith('data:image')) {
-            imageUrl = base64Data.trim();
-          } else if (base64Data.trim().startsWith('/9j/') || base64Data.trim().match(/^[A-Za-z0-9+/=]+$/)) {
-            // If it's just base64 string without data URI prefix, add it
-            imageUrl = `data:image/jpeg;base64,${base64Data.trim()}`;
-          } else {
-            // Try as direct base64
-            imageUrl = `data:image/jpeg;base64,${base64Data.trim()}`;
-          }
-        }
-      } catch (error) {
-        // Fallback: try production URL if base64 fails
-        if (window.location.protocol === 'https:' || window.location.hostname !== 'localhost') {
-          imageUrl = `${window.location.protocol}//${window.location.host}/image.jpg`;
-        }
+      // Use pre-loaded image or get it now
+      let imageUrl = razorpayImage;
+      if (!imageUrl) {
+        imageUrl = await getRazorpayImage();
       }
       
       const options = {
@@ -135,7 +118,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Shreshth Kaushik',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        ...(imageUrl && { image: imageUrl }), // Only set image if we have a valid URL
+        ...(imageUrl && { image: imageUrl }),
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({
