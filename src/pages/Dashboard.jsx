@@ -102,7 +102,15 @@ const Dashboard = () => {
       const priceData = await SubscriptionService.getPrice();
       const amountToPay = priceData.price;
       
+      if (!amountToPay || amountToPay <= 0) {
+        throw new Error('Invalid payment amount');
+      }
+      
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
+      
+      if (!orderData || !orderData.order_id || !orderData.key_id) {
+        throw new Error('Failed to create payment order. Invalid response from server.');
+      }
       
       // Get absolute URL for logo - only use if not localhost (for production)
       // In development, Razorpay can't access localhost due to CORS
@@ -112,7 +120,7 @@ const Dashboard = () => {
       const options = {
         key: orderData.key_id,
         amount: orderData.amount,
-        currency: orderData.currency,
+        currency: orderData.currency || 'INR',
         order_id: orderData.order_id,
         name: 'J4E',
         description: 'Monthly Subscription - Jarvis4Everyone',
@@ -150,7 +158,14 @@ const Dashboard = () => {
         }
       };
 
+      // Check if Razorpay is loaded
+      if (!window.Razorpay) {
+        throw new Error('Razorpay checkout script not loaded. Please refresh the page.');
+      }
+
       const rzp = new window.Razorpay(options);
+      
+      // Handle payment failure
       rzp.on('payment.failed', function (response) {
         const errorMsg = response.error?.description || 'Payment failed. Please try again.';
         setError(errorMsg);
@@ -159,8 +174,20 @@ const Dashboard = () => {
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
       
-      rzp.open();
-      setPaymentLoading(false);
+      // Handle modal close
+      rzp.on('modal.close', function() {
+        setPaymentLoading(false);
+      });
+      
+      // Open Razorpay checkout
+      try {
+        rzp.open();
+        // Don't set loading to false here - wait for payment completion or failure
+      } catch (openError) {
+        console.error('Error opening Razorpay:', openError);
+        setError('Failed to open payment gateway. Please try again.');
+        setPaymentLoading(false);
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create payment order');
       setPaymentLoading(false);
