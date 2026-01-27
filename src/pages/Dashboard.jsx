@@ -108,7 +108,13 @@ const Dashboard = () => {
     };
 
     try {
-      // Check Razorpay script
+      // Wait for Razorpay script to load (with timeout)
+      let retries = 0;
+      while (!window.Razorpay && retries < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+
       if (!window.Razorpay) {
         throw new Error('Razorpay script not loaded. Please refresh the page.');
       }
@@ -128,16 +134,21 @@ const Dashboard = () => {
         throw new Error('Failed to create payment order');
       }
 
+      // Validate order data
+      if (!orderData.key_id) {
+        throw new Error('Razorpay key ID is missing');
+      }
+
       // Logo URL (skip in localhost)
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const logoUrl = isLocalhost ? undefined : `${window.location.origin}/rzplogo.png`;
 
-      // Razorpay options
+      // Razorpay options - MUST include key
       const options = {
-        key: orderData.key_id,
-        amount: orderData.amount,
+        key: orderData.key_id, // REQUIRED: Razorpay key ID
+        amount: orderData.amount, // Amount in paise
         currency: orderData.currency || 'INR',
-        order_id: orderData.order_id,
+        order_id: orderData.order_id, // Order ID from backend
         name: 'J4E',
         description: 'Monthly Subscription - Jarvis4Everyone',
         ...(logoUrl && { image: logoUrl }),
@@ -184,23 +195,57 @@ const Dashboard = () => {
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
-      // Timeout safety
+      // Set timeout BEFORE opening
       timeoutId = setTimeout(() => {
+        console.warn('Razorpay popup timeout - resetting loading state');
         resetLoading();
-        setError('Payment gateway timeout. Please try again.');
-      }, 10000);
+        setError('Payment gateway did not open. Please try again.');
+      }, 8000);
 
       // Open payment popup
-      rzp.open();
+      try {
+        rzp.open();
+        console.log('Razorpay popup opened');
+        
+        // Check if popup actually opened after a short delay
+        setTimeout(() => {
+          // Check for Razorpay modal in DOM
+          const checkModal = () => {
+            const selectors = [
+              '.razorpay-container',
+              '[class*="razorpay"]',
+              '#razorpay-checkout-iframe',
+              'iframe[src*="razorpay"]'
+            ];
+            
+            for (const selector of selectors) {
+              const element = document.querySelector(selector);
+              if (element) {
+                console.log('Razorpay modal detected, clearing timeout');
+                if (timeoutId) {
+                  clearTimeout(timeoutId);
+                  timeoutId = null;
+                }
+                return true;
+              }
+            }
+            return false;
+          };
 
-      // Clear timeout if popup opens successfully
-      setTimeout(() => {
-        const modal = document.querySelector('.razorpay-container, [class*="razorpay"]');
-        if (modal && timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-      }, 2000);
+          if (!checkModal()) {
+            // If modal not found, check again after another second
+            setTimeout(() => {
+              if (!checkModal() && timeoutId) {
+                console.warn('Razorpay modal not detected after 2 seconds');
+              }
+            }, 1000);
+          }
+        }, 1500);
+      } catch (openError) {
+        resetLoading();
+        console.error('Error opening Razorpay:', openError);
+        setError('Failed to open payment gateway. Please refresh and try again.');
+      }
     } catch (err) {
       resetLoading();
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to process payment';
