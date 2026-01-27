@@ -8,29 +8,63 @@ const AnimatedBackground = memo(function AnimatedBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     let animationFrameId;
     let particles = [];
+    let lastTime = 0;
+    const targetFPS = 60;
+    const frameInterval = 1000 / targetFPS;
 
-    // Particle class - must be defined before resizeCanvas
+    // Set canvas size with device pixel ratio for crisp rendering
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      
+      // Recreate particles on resize with optimized count
+      particles = [];
+      const maxParticles = 80; // Cap at 80 particles for performance
+      const calculatedParticles = Math.min(
+        Math.floor((rect.width * rect.height) / 20000),
+        maxParticles
+      );
+      
+      for (let i = 0; i < calculatedParticles; i++) {
+        particles.push(new Particle(rect.width, rect.height));
+      }
+    };
+    
+    resizeCanvas();
+    const resizeHandler = () => {
+      resizeCanvas();
+    };
+    window.addEventListener('resize', resizeHandler, { passive: true });
+
+    // Particle class
     class Particle {
-      constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
+      constructor(width, height) {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
         this.size = Math.random() * 2 + 1;
-        this.speedX = (Math.random() - 0.5) * 0.5;
-        this.speedY = (Math.random() - 0.5) * 0.5;
+        this.speedX = (Math.random() - 0.5) * 0.3;
+        this.speedY = (Math.random() - 0.5) * 0.3;
         this.opacity = Math.random() * 0.5 + 0.2;
+        this.width = width;
+        this.height = height;
       }
 
       update() {
         this.x += this.speedX;
         this.y += this.speedY;
 
-        if (this.x > canvas.width) this.x = 0;
-        if (this.x < 0) this.x = canvas.width;
-        if (this.y > canvas.height) this.y = 0;
-        if (this.y < 0) this.y = canvas.height;
+        if (this.x > this.width) this.x = 0;
+        if (this.x < 0) this.x = this.width;
+        if (this.y > this.height) this.y = 0;
+        if (this.y < 0) this.y = this.height;
       }
 
       draw() {
@@ -41,93 +75,57 @@ const AnimatedBackground = memo(function AnimatedBackground() {
       }
     }
 
-    // Set canvas size with debouncing for performance
-    let resizeTimeout;
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      // Recreate particles on resize
-      particles = [];
-      const isMobile = window.innerWidth <= 768;
-      const baseArea = isMobile ? 15000 : 25000;
-      const maxParticles = isMobile ? 80 : 60;
-      const particleCount = Math.min(Math.floor((canvas.width * canvas.height) / baseArea), maxParticles);
-      for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle());
-      }
-    };
-    resizeCanvas();
-    
-    const handleResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(resizeCanvas, 250); // Debounce resize
-    };
-    window.addEventListener('resize', handleResize, { passive: true });
+    // Optimized animation loop with frame throttling
+    const animate = (currentTime) => {
+      if (currentTime - lastTime >= frameInterval) {
+        ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
 
-    // Create particles - optimized for performance
-    // Reduce particle count on larger screens to maintain 60fps
-    const isMobile = window.innerWidth <= 768;
-    const baseArea = isMobile ? 15000 : 25000; // Less particles on desktop
-    const maxParticles = isMobile ? 80 : 60; // Cap maximum particles
-    const particleCount = Math.min(Math.floor((canvas.width * canvas.height) / baseArea), maxParticles);
-    
-    for (let i = 0; i < particleCount; i++) {
-      particles.push(new Particle());
-    }
+        // Update and draw particles
+        particles.forEach((particle) => {
+          particle.update();
+          particle.draw();
+        });
 
-    // Optimized animation loop with reduced connection checks
-    let frameCount = 0;
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      frameCount++;
-
-      // Update and draw particles
-      particles.forEach((particle) => {
-        particle.update();
-        particle.draw();
-      });
-
-      // Only draw connections every other frame on desktop for better performance
-      const shouldDrawConnections = isMobile || frameCount % 2 === 0;
-      
-      if (shouldDrawConnections) {
-        // Optimized connection drawing - use distance squared to avoid sqrt when possible
+        // Optimized connection drawing - limit checks per particle
         const connectionDistance = 120;
-        const connectionDistanceSq = connectionDistance * connectionDistance;
+        const maxConnectionsPerParticle = 5; // Limit connections to improve performance
         
         for (let i = 0; i < particles.length; i++) {
           const particle = particles[i];
-          // Only check nearby particles (skip every other particle on desktop)
-          const step = isMobile ? 1 : 2;
+          let connectionCount = 0;
           
-          for (let j = i + step; j < particles.length; j += step) {
+          for (let j = i + 1; j < particles.length && connectionCount < maxConnectionsPerParticle; j++) {
             const otherParticle = particles[j];
             const dx = particle.x - otherParticle.x;
             const dy = particle.y - otherParticle.y;
-            const distanceSq = dx * dx + dy * dy;
-
-            if (distanceSq < connectionDistanceSq) {
-              const distance = Math.sqrt(distanceSq);
+            const distanceSquared = dx * dx + dy * dy;
+            
+            // Use squared distance to avoid expensive sqrt calculation
+            if (distanceSquared < connectionDistance * connectionDistance) {
+              const distance = Math.sqrt(distanceSquared);
               const opacity = 0.1 * (1 - distance / connectionDistance);
+              
               ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
               ctx.lineWidth = 0.5;
               ctx.beginPath();
               ctx.moveTo(particle.x, particle.y);
               ctx.lineTo(otherParticle.x, otherParticle.y);
               ctx.stroke();
+              connectionCount++;
             }
           }
         }
-      }
 
+        lastTime = currentTime;
+      }
+      
       animationFrameId = requestAnimationFrame(animate);
     };
 
-    animate();
+    animate(0);
 
     return () => {
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', resizeHandler);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);

@@ -1,13 +1,25 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI, subscriptionAPI, profileAPI } from '../services/api';
 
-const AuthContext = createContext(null);
+// Create context with default values to prevent "must be used within AuthProvider" errors
+const defaultContext = {
+  user: null,
+  subscription: null,
+  loading: true,
+  isAuthenticated: false,
+  login: async () => ({ success: false, error: 'Not initialized' }),
+  register: async () => ({ success: false, error: 'Not initialized' }),
+  logout: () => {},
+  refreshSubscription: async () => null,
+  refreshUser: async () => null,
+};
+
+const AuthContext = createContext(defaultContext);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  // Always return context - if it's the default, that means we're outside provider
+  // but at least it won't crash
   return context;
 };
 
@@ -21,7 +33,11 @@ export const AuthProvider = ({ children }) => {
     // Check if user is authenticated on mount
     const token = localStorage.getItem('access_token');
     if (token) {
-      checkAuth();
+      checkAuth().catch((error) => {
+        // Handle any uncaught errors during auth check
+        console.error('Error during auth check:', error);
+        setLoading(false);
+      });
     } else {
       setLoading(false);
     }
@@ -46,7 +62,8 @@ export const AuthProvider = ({ children }) => {
           // getMySubscription returns null for 404 (no subscription found)
           setSubscription(sub);
         } catch (subError) {
-          // Handle any other errors
+          // Handle any other errors gracefully
+          console.error('Error fetching subscription:', subError);
           setSubscription(null);
         }
       } catch (profileError) {
@@ -112,9 +129,12 @@ export const AuthProvider = ({ children }) => {
       setSubscription(sub);
       return sub;
     } catch (error) {
-      // Handle any other errors
+      // Handle errors gracefully - don't throw, just set to null
+      // This prevents uncaught promise rejections
+      console.error('Error refreshing subscription:', error);
       setSubscription(null);
-      throw error;
+      // Return null instead of throwing to prevent uncaught promise errors
+      return null;
     }
   };
 

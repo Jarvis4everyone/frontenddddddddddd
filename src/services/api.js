@@ -131,6 +131,7 @@ export const subscriptionAPI = {
       return response.data;
     } catch (error) {
       // Handle any unexpected errors
+      console.error('Subscription fetch error:', error);
       throw error;
     }
   },

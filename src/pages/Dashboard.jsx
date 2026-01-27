@@ -104,22 +104,6 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
-      // Get image URL - use HTTPS URL in production, skip in localhost
-      const getImageUrl = () => {
-        if (typeof window !== 'undefined') {
-          const protocol = window.location.protocol;
-          const host = window.location.host;
-          // Only use image if on HTTPS (production), skip for localhost to avoid CORS
-          if (protocol === 'https:') {
-            return `https://${host}/image.jpg`;
-          }
-        }
-        // Skip image for localhost/HTTP to avoid CORS errors
-        return undefined;
-      };
-      
-      const imageUrl = getImageUrl();
-      
       const options = {
         key: orderData.key_id,
         amount: orderData.amount,
@@ -127,7 +111,7 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Shreshth Kaushik',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        ...(imageUrl && { image: imageUrl }),
+        image: '/image.jpg',
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({

@@ -33,6 +33,7 @@ class SubscriptionService {
       
       return data;
     } catch (error) {
+      console.error('Error fetching subscription price:', error);
       // Return fallback price if API fails
       return {
         price: 299.0,

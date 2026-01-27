@@ -24,6 +24,9 @@
   padding: 0;
   box-sizing: border-box;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .nav-container {

@@ -4,7 +4,14 @@ import Layout from './Layout';
 import Loader from './Loader';
 
 const AdminRoute = ({ children }) => {
-  const { isAuthenticated, loading, user } = useAuth();
+  const auth = useAuth();
+  
+  // Handle case where context might not be fully initialized
+  if (!auth) {
+    return <Loader />;
+  }
+
+  const { isAuthenticated, loading, user } = auth;
 
   if (loading) {
     return <Loader />;
