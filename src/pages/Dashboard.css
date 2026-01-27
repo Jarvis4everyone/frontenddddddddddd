@@ -1524,6 +1524,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-section ul li a .button-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.footer-section ul li a span {
+  flex-shrink: 0;
 }
 
 .footer-section ul li a:hover {
