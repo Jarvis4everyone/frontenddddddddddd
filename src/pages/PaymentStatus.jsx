@@ -146,7 +146,7 @@ const PaymentStatus = () => {
 
           <div className="status-footer">
             <p>
-              Need help? <a href="/contact">Contact Support</a>
+              Need help? <a href="/dashboard#contact">Contact Support</a>
             </p>
           </div>
         </div>
