@@ -152,13 +152,12 @@ const Dashboard = () => {
       }
 
       // Validate order data
-      console.log('Order data received:', orderData);
-      
       if (!orderData.order_id || !orderData.key_id || !orderData.amount) {
         throw new Error('Invalid order data received from server');
       }
 
       // Ensure amount is a number (Razorpay requires integer in paise)
+      // Backend already converts to paise, so we use it directly
       const amount = typeof orderData.amount === 'number' 
         ? Math.round(orderData.amount) 
         : parseInt(orderData.amount, 10);
@@ -167,9 +166,8 @@ const Dashboard = () => {
         throw new Error(`Invalid payment amount: ${orderData.amount}`);
       }
 
-      // Logo URL (skip in localhost)
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const logoUrl = isLocalhost ? undefined : `${window.location.origin}/rzplogo.png`;
+      // Logo URL - always use the logo
+      const logoUrl = `${window.location.origin}/rzplogo.png`;
 
       // Razorpay options - ensure all required fields are present
       const options = {
@@ -177,9 +175,9 @@ const Dashboard = () => {
         amount: amount, // Amount in paise (smallest currency unit)
         currency: orderData.currency || 'INR',
         order_id: orderData.order_id,
-        name: 'J4E',
+        name: 'Jarvis4Everyone',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        ...(logoUrl && { image: logoUrl }),
+        image: logoUrl,
         prefill: {
           name: user?.name || '',
           email: user?.email || '',
@@ -190,27 +188,30 @@ const Dashboard = () => {
         },
         // Add error handler
         handler: async function (response) {
-          console.log('Payment success response:', response);
           resetLoading();
           popupOpened = true;
+          
           try {
+            // Verify payment with backend
             await paymentAPI.verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
 
+            // Refresh subscription status
             await refreshSubscription();
+            
+            // Navigate to success page
             navigate(`/payment/status?status=success&order_id=${response.razorpay_order_id}`);
           } catch (verifyError) {
-            const errorMsg = verifyError.response?.data?.detail || 'Payment verification failed';
+            const errorMsg = verifyError.response?.data?.detail || verifyError.message || 'Payment verification failed';
             setError(errorMsg);
             navigate(`/payment/status?status=failed&order_id=${response.razorpay_order_id}&error=${encodeURIComponent(errorMsg)}`);
           }
         },
         modal: {
           ondismiss: function () {
-            console.log('Razorpay modal dismissed');
             resetLoading();
             popupOpened = true;
           },
@@ -238,21 +239,20 @@ const Dashboard = () => {
 
       // Event handlers - MUST be set before opening
       rzp.on('payment.failed', function (response) {
-        console.error('Payment failed:', response);
         resetLoading();
         popupOpened = true;
-        const errorMsg = response.error?.description || 'Payment failed';
+        const errorMsg = response.error?.description || response.error?.reason || 'Payment failed';
         setError(errorMsg);
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
       // Handle Razorpay errors
       rzp.on('payment.error', function (error) {
-        console.error('Razorpay error:', error);
         resetLoading();
         popupOpened = true;
         const errorMsg = error.error?.description || error.error?.reason || 'Payment gateway error';
         setError(errorMsg);
+        navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
       // Safety timeout - ALWAYS reset loading after 5 seconds
@@ -265,57 +265,23 @@ const Dashboard = () => {
 
       // Open payment popup
       try {
-        console.log('Opening Razorpay popup with options:', {
-          key: options.key,
-          amount: options.amount,
-          currency: options.currency,
-          order_id: options.order_id
-        });
-        
         // Use setTimeout to ensure DOM is ready
         setTimeout(() => {
           try {
             rzp.open();
-            console.log('rzp.open() called successfully');
             popupOpened = true;
             
-            // Check for popup after a short delay
-            setTimeout(() => {
-              const selectors = [
-                'iframe[src*="razorpay"]',
-                'iframe[src*="checkout.razorpay.com"]',
-                '.razorpay-container',
-                '[class*="razorpay"]',
-                '#razorpay-checkout-iframe',
-                'div[id*="razorpay"]'
-              ];
-              
-              let found = false;
-              for (const selector of selectors) {
-                const element = document.querySelector(selector);
-                if (element) {
-                  console.log('Razorpay popup found:', selector);
-                  found = true;
-                  if (timeoutId) {
-                    clearTimeout(timeoutId);
-                    timeoutId = null;
-                  }
-                  break;
-                }
-              }
-              
-              if (!found) {
-                console.warn('Razorpay popup not found in DOM after 1 second');
-              }
-            }, 1000);
+            // Clear timeout once popup is opened
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
           } catch (openError) {
-            console.error('Error calling rzp.open():', openError);
             resetLoading();
             setError(`Failed to open payment gateway: ${openError.message}`);
           }
         }, 100);
       } catch (openError) {
-        console.error('Error in payment flow:', openError);
         resetLoading();
         setError(`Payment initialization failed: ${openError.message}`);
       }

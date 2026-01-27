@@ -8,7 +8,8 @@ const logger = require('../utils/logger');
 
 /**
  * POST /api/payments/create-order
- * Create Razorpay order
+ * Create Razorpay order for payment
+ * Authentication: Required (Bearer token)
  */
 router.post('/create-order', getCurrentUser, async (req, res) => {
   try {
@@ -42,7 +43,7 @@ router.post('/create-order', getCurrentUser, async (req, res) => {
     // Return order details for frontend
     res.json({
       order_id: order.id,
-      amount: order.amount,
+      amount: order.amount, // Amount in paise
       currency: order.currency,
       key_id: config.razorpay.keyId,
       payment_id: payment.id
@@ -59,6 +60,7 @@ router.post('/create-order', getCurrentUser, async (req, res) => {
 /**
  * POST /api/payments/verify
  * Verify payment and activate subscription
+ * Authentication: Required (Bearer token)
  */
 router.post('/verify', getCurrentUser, async (req, res) => {
   try {
@@ -119,6 +121,116 @@ router.post('/verify', getCurrentUser, async (req, res) => {
     
     res.status(500).json({
       detail: error.message || 'Failed to verify payment'
+    });
+  }
+});
+
+/**
+ * POST /api/payments/webhook
+ * Handle Razorpay webhook (for payment status updates)
+ * Authentication: Not required (uses signature verification)
+ */
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    // Get webhook signature from headers
+    const signature = req.headers['x-razorpay-signature'];
+    
+    if (!signature) {
+      logger.error('✗ Webhook request missing signature');
+      return res.status(400).json({ detail: 'Missing webhook signature' });
+    }
+
+    // Get request body as string (already parsed as raw by express.raw middleware)
+    const body = req.body.toString('utf8');
+
+    // Verify webhook signature
+    const isValid = PaymentService.verifyWebhookSignature(body, signature);
+    
+    if (!isValid) {
+      logger.error('✗ Webhook signature verification failed');
+      return res.status(400).json({ detail: 'Invalid webhook signature' });
+    }
+
+    // Parse webhook payload
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch (parseError) {
+      logger.error(`✗ Failed to parse webhook payload: ${parseError.message}`);
+      return res.status(400).json({ detail: 'Invalid webhook payload' });
+    }
+
+    const event = payload.event;
+    logger.info(`Received webhook event: ${event}`);
+
+    // Handle payment.captured event
+    if (event === 'payment.captured') {
+      const paymentData = payload.payload?.payment?.entity || {};
+      const orderId = paymentData.order_id;
+      const paymentId = paymentData.id;
+
+      if (!orderId || !paymentId) {
+        logger.error('✗ Webhook payload missing order_id or payment_id');
+        return res.status(400).json({ detail: 'Invalid webhook payload structure' });
+      }
+
+      // Get payment record
+      const payment = await PaymentService.getPaymentByOrderId(orderId);
+      
+      if (!payment) {
+        logger.warn(`⚠ Payment record not found for order: ${orderId}`);
+        return res.status(404).json({ detail: 'Payment record not found' });
+      }
+
+      // Only process if payment is still pending (idempotent)
+      if (payment.status === 'pending') {
+        // Update payment status
+        await PaymentService.updatePaymentStatus(
+          orderId,
+          paymentId,
+          signature,
+          'completed'
+        );
+
+        // Activate subscription if user exists
+        if (payment.user_id) {
+          await SubscriptionService.renewSubscription(payment.user_id, 1);
+          logger.info(`✓ Subscription activated via webhook for user: ${payment.user_id}`);
+        }
+
+        logger.info(`✓ Payment processed via webhook: ${orderId}`);
+      } else {
+        logger.info(`ℹ Payment already processed: ${orderId} (status: ${payment.status})`);
+      }
+    } else if (event === 'payment.failed') {
+      const paymentData = payload.payload?.payment?.entity || {};
+      const orderId = paymentData.order_id;
+
+      if (orderId) {
+        const payment = await PaymentService.getPaymentByOrderId(orderId);
+        if (payment && payment.status === 'pending') {
+          await PaymentService.updatePaymentStatus(
+            orderId,
+            paymentData.id || '',
+            signature,
+            'failed'
+          );
+          logger.info(`✓ Payment marked as failed via webhook: ${orderId}`);
+        }
+      }
+    }
+
+    // Always return success to Razorpay (to prevent retries)
+    res.json({ status: 'success' });
+  } catch (error) {
+    logger.error(`✗ Webhook processing error: ${error.message}`);
+    logger.error(`Stack: ${error.stack}`);
+    
+    // Still return 200 to prevent Razorpay from retrying
+    // But log the error for investigation
+    res.status(200).json({ 
+      status: 'error',
+      message: 'Webhook processed with errors'
     });
   }
 });

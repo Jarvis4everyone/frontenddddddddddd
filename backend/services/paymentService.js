@@ -36,6 +36,9 @@ razorpayClient = initializeRazorpay();
 class PaymentService {
   /**
    * Create Razorpay order
+   * @param {number} amount - Amount in rupees (e.g., 299.00)
+   * @param {string} currency - Currency code (default: 'INR')
+   * @returns {Promise<Object>} Razorpay order object
    */
   static async createOrder(amount, currency = 'INR') {
     // Validate client
@@ -95,6 +98,12 @@ class PaymentService {
 
   /**
    * Create payment record in database
+   * @param {string} userId - User ID
+   * @param {string} email - User email
+   * @param {number} amount - Amount in rupees
+   * @param {string} currency - Currency code
+   * @param {string} razorpayOrderId - Razorpay order ID
+   * @returns {Promise<Object>} Payment record
    */
   static async createPaymentRecord(userId, email, amount, currency, razorpayOrderId) {
     try {
@@ -107,8 +116,11 @@ class PaymentService {
         amount: amount,
         currency: currency,
         razorpay_order_id: razorpayOrderId,
+        razorpay_payment_id: null,
+        razorpay_signature: null,
         status: 'pending',
-        created_at: new Date()
+        created_at: new Date(),
+        updated_at: new Date()
       };
 
       const result = await db.collection('payments').insertOne(payment);
@@ -125,6 +137,10 @@ class PaymentService {
 
   /**
    * Verify Razorpay payment signature
+   * @param {string} razorpayOrderId - Order ID
+   * @param {string} razorpayPaymentId - Payment ID
+   * @param {string} razorpaySignature - Payment signature
+   * @returns {boolean} True if signature is valid
    */
   static verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature) {
     if (!config.razorpay.keySecret) {
@@ -136,16 +152,16 @@ class PaymentService {
       // Create signature string: order_id|payment_id
       const payload = `${razorpayOrderId}|${razorpayPaymentId}`;
 
-      // Generate expected signature
+      // Generate expected signature using HMAC SHA256
       const expectedSignature = crypto
         .createHmac('sha256', config.razorpay.keySecret)
         .update(payload)
         .digest('hex');
 
-      // Compare signatures (timing-safe)
+      // Compare signatures (timing-safe comparison)
       const isValid = crypto.timingSafeEqual(
-        Buffer.from(razorpaySignature),
-        Buffer.from(expectedSignature)
+        Buffer.from(razorpaySignature, 'utf8'),
+        Buffer.from(expectedSignature, 'utf8')
       );
 
       if (isValid) {
@@ -162,7 +178,47 @@ class PaymentService {
   }
 
   /**
+   * Verify Razorpay webhook signature
+   * @param {string} payload - Raw request body as string
+   * @param {string} signature - Webhook signature from headers
+   * @returns {boolean} True if signature is valid
+   */
+  static verifyWebhookSignature(payload, signature) {
+    if (!config.razorpay.webhookSecret) {
+      logger.error('Razorpay webhook secret not configured');
+      return false;
+    }
+
+    try {
+      // Generate expected signature using HMAC SHA256
+      const expectedSignature = crypto
+        .createHmac('sha256', config.razorpay.webhookSecret)
+        .update(payload)
+        .digest('hex');
+
+      // Compare signatures (timing-safe comparison)
+      const isValid = crypto.timingSafeEqual(
+        Buffer.from(signature, 'utf8'),
+        Buffer.from(expectedSignature, 'utf8')
+      );
+
+      if (isValid) {
+        logger.info(`✓ Webhook signature verified`);
+        return true;
+      } else {
+        logger.error(`✗ Webhook signature mismatch`);
+        return false;
+      }
+    } catch (error) {
+      logger.error(`✗ Webhook signature verification failed: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
    * Get payment by order ID
+   * @param {string} razorpayOrderId - Razorpay order ID
+   * @returns {Promise<Object|null>} Payment record or null
    */
   static async getPaymentByOrderId(razorpayOrderId) {
     try {
@@ -179,7 +235,31 @@ class PaymentService {
   }
 
   /**
+   * Get payment by payment ID
+   * @param {string} razorpayPaymentId - Razorpay payment ID
+   * @returns {Promise<Object|null>} Payment record or null
+   */
+  static async getPaymentByPaymentId(razorpayPaymentId) {
+    try {
+      const db = getDatabase();
+      const payment = await db.collection('payments').findOne({ 
+        razorpay_payment_id: razorpayPaymentId 
+      });
+
+      return payment ? this._formatPayment(payment) : null;
+    } catch (error) {
+      logger.error(`✗ Failed to get payment by payment ID: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Update payment status
+   * @param {string} razorpayOrderId - Order ID to find payment
+   * @param {string} razorpayPaymentId - Payment ID to store
+   * @param {string} razorpaySignature - Signature to store
+   * @param {string} status - New status ('completed', 'failed', 'refunded')
+   * @returns {Promise<Object>} Updated payment record
    */
   static async updatePaymentStatus(razorpayOrderId, razorpayPaymentId, razorpaySignature, status) {
     try {
@@ -217,7 +297,36 @@ class PaymentService {
   }
 
   /**
-   * Format payment document
+   * Get all payments (for admin)
+   * @param {number} skip - Number of records to skip
+   * @param {number} limit - Maximum number of records to return
+   * @returns {Promise<Array>} Array of payment records
+   */
+  static async getAllPayments(skip = 0, limit = 100) {
+    try {
+      const db = getDatabase();
+      const payments = [];
+      const cursor = db.collection('payments')
+        .find()
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit);
+      
+      for await (const payment of cursor) {
+        payments.push(this._formatPayment(payment));
+      }
+      
+      return payments;
+    } catch (error) {
+      logger.error(`✗ Failed to get all payments: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Format payment document for response
+   * @param {Object} payment - MongoDB payment document
+   * @returns {Object} Formatted payment object
    */
   static _formatPayment(payment) {
     if (!payment) return null;
@@ -226,7 +335,7 @@ class PaymentService {
       id: payment._id.toString(),
       user_id: payment.user_id ? payment.user_id.toString() : null,
       email: payment.email,
-      plan_id: payment.plan_id,
+      plan_id: payment.plan_id || 'monthly',
       amount: payment.amount,
       currency: payment.currency,
       razorpay_order_id: payment.razorpay_order_id,

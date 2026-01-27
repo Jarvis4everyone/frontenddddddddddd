@@ -165,6 +165,12 @@ export const downloadAPI = {
 
 // Payment API
 export const paymentAPI = {
+  /**
+   * Create a payment order
+   * @param {number} amount - Amount in rupees (e.g., 299.00)
+   * @param {string} currency - Currency code (default: 'INR')
+   * @returns {Promise<Object>} Order data with order_id, amount (in paise), currency, key_id, payment_id
+   */
   createOrder: async (amount, currency = 'INR') => {
     const response = await api.post('/payments/create-order', {
       amount,
@@ -173,8 +179,20 @@ export const paymentAPI = {
     return response.data;
   },
 
+  /**
+   * Verify payment after Razorpay checkout
+   * @param {Object} paymentData - Payment verification data
+   * @param {string} paymentData.razorpay_order_id - Order ID from Razorpay
+   * @param {string} paymentData.razorpay_payment_id - Payment ID from Razorpay
+   * @param {string} paymentData.razorpay_signature - Payment signature from Razorpay
+   * @returns {Promise<Object>} Verification result with payment details
+   */
   verifyPayment: async (paymentData) => {
-    const response = await api.post('/payments/verify', paymentData);
+    const response = await api.post('/payments/verify', {
+      razorpay_order_id: paymentData.razorpay_order_id,
+      razorpay_payment_id: paymentData.razorpay_payment_id,
+      razorpay_signature: paymentData.razorpay_signature,
+    });
     return response.data;
   },
 };
