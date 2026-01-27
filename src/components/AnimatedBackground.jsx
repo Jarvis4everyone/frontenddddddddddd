@@ -15,36 +15,7 @@ const AnimatedBackground = memo(function AnimatedBackground() {
     const targetFPS = 60;
     const frameInterval = 1000 / targetFPS;
 
-    // Set canvas size with device pixel ratio for crisp rendering
-    const resizeCanvas = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-      
-      // Recreate particles on resize with optimized count
-      particles = [];
-      const maxParticles = 80; // Cap at 80 particles for performance
-      const calculatedParticles = Math.min(
-        Math.floor((rect.width * rect.height) / 20000),
-        maxParticles
-      );
-      
-      for (let i = 0; i < calculatedParticles; i++) {
-        particles.push(new Particle(rect.width, rect.height));
-      }
-    };
-    
-    resizeCanvas();
-    const resizeHandler = () => {
-      resizeCanvas();
-    };
-    window.addEventListener('resize', resizeHandler, { passive: true });
-
-    // Particle class
+    // Particle class - must be defined before resizeCanvas
     class Particle {
       constructor(width, height) {
         this.x = Math.random() * width;
@@ -74,6 +45,35 @@ const AnimatedBackground = memo(function AnimatedBackground() {
         ctx.fill();
       }
     }
+
+    // Set canvas size with device pixel ratio for crisp rendering
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      
+      // Recreate particles on resize with optimized count
+      particles = [];
+      const maxParticles = 80; // Cap at 80 particles for performance
+      const calculatedParticles = Math.min(
+        Math.floor((rect.width * rect.height) / 20000),
+        maxParticles
+      );
+      
+      for (let i = 0; i < calculatedParticles; i++) {
+        particles.push(new Particle(rect.width, rect.height));
+      }
+    };
+    
+    resizeCanvas();
+    const resizeHandler = () => {
+      resizeCanvas();
+    };
+    window.addEventListener('resize', resizeHandler, { passive: true });
 
     // Optimized animation loop with frame throttling
     const animate = (currentTime) => {
