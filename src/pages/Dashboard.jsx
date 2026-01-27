@@ -195,55 +195,37 @@ const Dashboard = () => {
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
-      // Set timeout BEFORE opening
+      // Set timeout safety net
       timeoutId = setTimeout(() => {
-        console.warn('Razorpay popup timeout - resetting loading state');
         resetLoading();
-        setError('Payment gateway did not open. Please try again.');
-      }, 8000);
+        setError('Payment gateway timeout. Please try again.');
+      }, 10000);
 
       // Open payment popup
       try {
         rzp.open();
-        console.log('Razorpay popup opened');
         
-        // Check if popup actually opened after a short delay
+        // Check if popup opened successfully and clear timeout
         setTimeout(() => {
-          // Check for Razorpay modal in DOM
-          const checkModal = () => {
-            const selectors = [
-              '.razorpay-container',
-              '[class*="razorpay"]',
-              '#razorpay-checkout-iframe',
-              'iframe[src*="razorpay"]'
-            ];
-            
-            for (const selector of selectors) {
-              const element = document.querySelector(selector);
-              if (element) {
-                console.log('Razorpay modal detected, clearing timeout');
-                if (timeoutId) {
-                  clearTimeout(timeoutId);
-                  timeoutId = null;
-                }
-                return true;
-              }
+          const selectors = [
+            '.razorpay-container',
+            '[class*="razorpay"]',
+            '#razorpay-checkout-iframe',
+            'iframe[src*="razorpay"]',
+            'iframe[src*="checkout.razorpay.com"]'
+          ];
+          
+          for (const selector of selectors) {
+            const element = document.querySelector(selector);
+            if (element && timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+              break;
             }
-            return false;
-          };
-
-          if (!checkModal()) {
-            // If modal not found, check again after another second
-            setTimeout(() => {
-              if (!checkModal() && timeoutId) {
-                console.warn('Razorpay modal not detected after 2 seconds');
-              }
-            }, 1000);
           }
         }, 1500);
       } catch (openError) {
         resetLoading();
-        console.error('Error opening Razorpay:', openError);
         setError('Failed to open payment gateway. Please refresh and try again.');
       }
     } catch (err) {
