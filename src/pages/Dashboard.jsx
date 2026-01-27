@@ -166,9 +166,6 @@ const Dashboard = () => {
         throw new Error(`Invalid payment amount: ${orderData.amount}`);
       }
 
-      // Logo URL - always use the logo
-      const logoUrl = `${window.location.origin}/rzplogo.png`;
-
       // Razorpay options - ensure all required fields are present
       const options = {
         key: orderData.key_id,
@@ -177,7 +174,8 @@ const Dashboard = () => {
         order_id: orderData.order_id,
         name: 'Jarvis4Everyone',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        image: logoUrl,
+        // Logo is optional - Razorpay will handle if it fails to load
+        image: `${window.location.origin}/rzplogo.png`,
         prefill: {
           name: user?.name || '',
           email: user?.email || '',
@@ -255,35 +253,37 @@ const Dashboard = () => {
         navigate(`/payment/status?status=failed&error=${encodeURIComponent(errorMsg)}`);
       });
 
-      // Safety timeout - ALWAYS reset loading after 5 seconds
+      // Safety timeout - ALWAYS reset loading after 3 seconds
       timeoutId = setTimeout(() => {
-        resetLoading();
         if (!popupOpened) {
-          setError('Payment gateway did not open. Please try again or refresh the page.');
+          resetLoading();
+          setError('Payment gateway did not open. Please check if popup blockers are enabled and try again.');
         }
-      }, 5000);
+      }, 3000);
 
-      // Open payment popup
+      // Open payment popup immediately (no delay)
       try {
-        // Use setTimeout to ensure DOM is ready
+        rzp.open();
+        popupOpened = true;
+        
+        // Clear timeout once popup is opened
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        // Verify popup opened by checking for Razorpay iframe after a short delay
         setTimeout(() => {
-          try {
-            rzp.open();
-            popupOpened = true;
-            
-            // Clear timeout once popup is opened
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-              timeoutId = null;
-            }
-          } catch (openError) {
+          const razorpayIframe = document.querySelector('iframe[src*="razorpay"]') || 
+                                 document.querySelector('iframe[src*="checkout.razorpay.com"]');
+          if (!razorpayIframe && !popupOpened) {
             resetLoading();
-            setError(`Failed to open payment gateway: ${openError.message}`);
+            setError('Payment popup was blocked. Please allow popups for this site and try again.');
           }
-        }, 100);
+        }, 500);
       } catch (openError) {
         resetLoading();
-        setError(`Payment initialization failed: ${openError.message}`);
+        setError(`Failed to open payment gateway: ${openError.message}. Please check if popup blockers are enabled.`);
       }
 
     } catch (err) {
