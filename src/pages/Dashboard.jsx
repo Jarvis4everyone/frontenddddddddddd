@@ -104,14 +104,17 @@ const Dashboard = () => {
       
       const orderData = await paymentAPI.createOrder(amountToPay, 'INR');
       
+      // Get absolute URL for logo to ensure it always loads
+      const logoUrl = `${window.location.origin}/rzplogo.png`;
+      
       const options = {
         key: orderData.key_id,
         amount: orderData.amount,
         currency: orderData.currency,
         order_id: orderData.order_id,
-        name: 'Shreshth Kaushik',
+        name: 'J4E',
         description: 'Monthly Subscription - Jarvis4Everyone',
-        image: '/image.jpg',
+        image: logoUrl,
         handler: async function (response) {
           try {
             await paymentAPI.verifyPayment({

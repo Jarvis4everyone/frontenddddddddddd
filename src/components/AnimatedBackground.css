@@ -147,6 +147,31 @@
   }
 }
 
+/* Performance optimizations for desktop */
+@media (min-width: 769px) {
+  /* Reduce animation complexity on desktop for better performance */
+  .animated-bg-glow {
+    filter: blur(50px);
+  }
+  
+  /* Slightly slower animations on desktop to reduce CPU usage */
+  .animated-bg-base {
+    animation-duration: 20s;
+  }
+  
+  .animated-bg-overlay {
+    animation-duration: 12s;
+  }
+  
+  .animated-bg-grid {
+    animation-duration: 30s;
+  }
+  
+  .animated-bg-glow {
+    animation-duration: 18s;
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .animated-bg-grid {
@@ -168,3 +193,12 @@
   }
 }
 
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animated-bg-base,
+  .animated-bg-overlay,
+  .animated-bg-grid,
+  .animated-bg-glow {
+    animation: none;
+  }
+}

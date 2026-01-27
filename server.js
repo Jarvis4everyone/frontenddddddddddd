@@ -60,29 +60,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy' });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Jarvis4Everyone Backend API',
-    version: '1.0.0',
-    docs: '/api/docs'
-  });
-});
-
-// CORS info endpoint (for debugging)
-app.get('/cors-info', (req, res) => {
-  const corsOrigins = process.env.CORS_ORIGINS 
-    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:3000', 'http://localhost:5173'];
-  
-  res.json({
-    cors_origins: process.env.CORS_ORIGINS,
-    cors_origins_list: corsOrigins,
-    allowed_origins_count: corsOrigins.length
-  });
-});
-
-// API routes
+// API routes (must be before static file serving)
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
@@ -105,14 +83,32 @@ app.get('/api', (req, res) => {
   });
 });
 
+// CORS info endpoint (for debugging) - API route
+app.get('/api/cors-info', (req, res) => {
+  const corsOrigins = process.env.CORS_ORIGINS 
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : ['http://localhost:3000', 'http://localhost:5173'];
+  
+  res.json({
+    cors_origins: process.env.CORS_ORIGINS,
+    cors_origins_list: corsOrigins,
+    allowed_origins_count: corsOrigins.length
+  });
+});
+
 // Serve static files from React app (if dist folder exists - production build)
 const distPath = path.join(__dirname, 'dist');
 const fs = require('fs');
 
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+  // Serve static files (CSS, JS, images, etc.)
+  app.use(express.static(distPath, {
+    maxAge: '1y', // Cache static assets for 1 year
+    etag: true,
+    lastModified: true
+  }));
   
-  // Serve React app for all non-API routes
+  // Serve React app for all non-API routes (SPA fallback)
   app.get('*', (req, res) => {
     // Don't serve React app for API routes
     if (req.path.startsWith('/api')) {
@@ -124,6 +120,16 @@ if (fs.existsSync(distPath)) {
   logger.info('✓ Frontend static files enabled (dist folder found)');
 } else {
   logger.warn('⚠ Frontend dist folder not found - API only mode');
+  
+  // Fallback: API info at root if no frontend
+  app.get('/', (req, res) => {
+    res.json({
+      message: 'Jarvis4Everyone Backend API',
+      version: '1.0.0',
+      docs: '/api/docs',
+      note: 'Frontend not built. Run "npm run build" to build the frontend.'
+    });
+  });
 }
 
 // Error handling middleware
@@ -143,9 +149,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ detail: 'Endpoint not found' });
+// 404 handler - only for API routes (frontend routes are handled by SPA fallback above)
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ detail: 'API endpoint not found' });
 });
 
 // Start server
