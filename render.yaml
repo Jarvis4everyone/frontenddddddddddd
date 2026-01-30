@@ -1,0 +1,11 @@
+# Frontend only — set VITE_API_BASE_URL to your Python backend URL in Render Dashboard
+services:
+  - type: web
+    name: jarvis4everyone
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    # healthCheckPath: / (or remove; no /health unless you add it to nginx)
+    autoDeploy: true
+    # In Render Dashboard: add env var VITE_API_BASE_URL = your Python backend URL
