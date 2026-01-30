@@ -57,7 +57,7 @@ const ImageGallery = () => {
 };
 
 const Dashboard = () => {
-  const { user, subscription, refreshSubscription } = useAuth();
+  const { user, subscription, refreshSubscription, isAuthenticated } = useAuth();
   const [faqOpen, setFaqOpen] = useState(null);
   const [contactLoading, setContactLoading] = useState(false);
   const [contactSuccess, setContactSuccess] = useState(false);
@@ -88,20 +88,42 @@ const Dashboard = () => {
     });
   };
 
+  const getPaymentErrorMessage = (err, fallback) => {
+    const detail = err.response?.data?.detail;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg;
+    if (err.message && err.message !== 'Network Error') return err.message;
+    return fallback;
+  };
+
+  // Payment flow per API_DOCUMENTATION.md & PAYMENT_SYSTEM_README.md:
+  // 1. GET /subscriptions/price → 2. POST /payments/create-order (amount in rupees) →
+  // 3. Razorpay checkout (key_id, order_id, amount in paise) →
+  // 4. POST /payments/verify (razorpay_order_id, razorpay_payment_id, razorpay_signature) →
+  // 5. Backend activates subscription (1 month)
   const handleSubscribe = async () => {
     setSubscribeError('');
+    if (!isAuthenticated) {
+      setSubscribeError('Please log in to purchase a subscription.');
+      return;
+    }
     setSubscribeLoading(true);
     try {
       const priceData = await subscriptionAPI.getPrice();
-      const orderData = await paymentAPI.createOrder(priceData.price, 'INR');
+      const amountInRupees = Number(priceData.price);
+      if (!Number.isFinite(amountInRupees) || amountInRupees <= 0) {
+        setSubscribeError('Invalid subscription price. Please try again.');
+        return;
+      }
+      const orderData = await paymentAPI.createOrder(amountInRupees, 'INR');
       await loadRazorpayScript();
       const options = {
         key: orderData.key_id,
         amount: orderData.amount,
         currency: orderData.currency,
         order_id: orderData.order_id,
-        name: 'J4E',
-        description: 'Jarvis AI Source Code — Monthly subscription',
+        name: 'Jarvis4Everyone',
+        description: 'Monthly subscription — Jarvis AI Source Code',
         handler: async (response) => {
           try {
             await paymentAPI.verify(
@@ -112,24 +134,21 @@ const Dashboard = () => {
             await refreshSubscription();
             setSubscribeError('');
           } catch (err) {
-            const msg = err.response?.data?.detail ?? err.message;
-            setSubscribeError(typeof msg === 'string' ? msg : 'Payment verification failed. Please contact support.');
+            setSubscribeError(getPaymentErrorMessage(err, 'Payment verification failed. Please contact support.'));
           }
         },
         prefill: {
           name: user?.name || '',
           email: user?.email || '',
         },
-        theme: { color: '#000000' },
       };
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', () => {
         setSubscribeError('Payment failed or was cancelled.');
       });
-      setTimeout(() => rzp.open(), 100);
+      rzp.open();
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message;
-      setSubscribeError(typeof msg === 'string' ? msg : 'Unable to start payment. Please try again.');
+      setSubscribeError(getPaymentErrorMessage(err, 'Unable to start payment. Please try again.'));
     } finally {
       setSubscribeLoading(false);
     }

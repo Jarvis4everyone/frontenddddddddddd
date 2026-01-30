@@ -122,13 +122,16 @@ export const profileAPI = {
   },
 };
 
-// Subscription API (Python backend: https://backend-hjyy.onrender.com)
+// Subscription API — use /profile/subscription (same as /subscriptions/me; backend may only have profile route)
 export const subscriptionAPI = {
   getMySubscription: async () => {
     try {
-      const response = await api.get('/subscriptions/me');
+      const response = await api.get('/profile/subscription');
       return response.data;
     } catch (error) {
+      if (error.response?.status === 404) {
+        return null;
+      }
       console.error('Subscription fetch error:', error);
       throw error;
     }
@@ -150,10 +153,15 @@ export const subscriptionAPI = {
   },
 };
 
-// Payment API (Python backend: POST /payments/create-order, POST /payments/verify)
+// Payment API — per API_DOCUMENTATION.md & PAYMENT_SYSTEM_README.md
+// POST /payments/create-order: body { amount (rupees), currency } → { order_id, amount (paise), key_id, payment_id }
+// POST /payments/verify: body { razorpay_order_id, razorpay_payment_id, razorpay_signature } → activates subscription
 export const paymentAPI = {
   createOrder: async (amount, currency = 'INR') => {
-    const response = await api.post('/payments/create-order', { amount, currency });
+    const response = await api.post('/payments/create-order', {
+      amount: Number(amount),
+      currency,
+    });
     return response.data;
   },
 
@@ -275,7 +283,8 @@ export const healthAPI = {
 export const checkSubscriptionStatus = async () => {
   try {
     const subscription = await subscriptionAPI.getMySubscription();
-    
+    if (!subscription) return { active: false, noSubscription: true };
+
     if (subscription.status === 'active') {
       // Check if not expired
       const endDate = new Date(subscription.end_date);

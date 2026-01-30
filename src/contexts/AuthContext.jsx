@@ -59,10 +59,8 @@ export const AuthProvider = ({ children }) => {
         // Try to get subscription separately
         try {
           const sub = await subscriptionAPI.getMySubscription();
-          // getMySubscription returns null for 404 (no subscription found)
-          setSubscription(sub);
+          setSubscription(sub ?? null);
         } catch (subError) {
-          // Handle any other errors gracefully
           console.error('Error fetching subscription:', subError);
           setSubscription(null);
         }
@@ -131,15 +129,11 @@ export const AuthProvider = ({ children }) => {
   const refreshSubscription = async () => {
     try {
       const sub = await subscriptionAPI.getMySubscription();
-      // getMySubscription returns null for 404 (no subscription found)
-      setSubscription(sub);
+      setSubscription(sub ?? null);
       return sub;
     } catch (error) {
-      // Handle errors gracefully - don't throw, just set to null
-      // This prevents uncaught promise rejections
       console.error('Error refreshing subscription:', error);
       setSubscription(null);
-      // Return null instead of throwing to prevent uncaught promise errors
       return null;
     }
   };
